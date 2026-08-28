@@ -1,0 +1,772 @@
+
+=== public.users ===
+  id                                            uuid                                null=NO  def=None
+  first_name                                    text                                null=YES def=None
+  last_name                                     text                                null=YES def=None
+  role                                          text                                null=NO  def=None
+  created_at                                    timestamp with time zone            null=YES def=now()
+  updated_at                                    timestamp with time zone            null=YES def=now()
+  email                                         text                                null=YES def=None
+  curp                                          text                                null=YES def=None
+  passport_number                               text                                null=YES def=None
+  phone_number                                  text                                null=YES def=None
+  is_foreign_traveler                           boolean                             null=YES def=false
+  date_of_birth                                 date                                null=YES def=None
+  email_verified                                boolean                             null=NO  def=false
+  verification_code                             text                                null=YES def=None
+  verification_code_expires_at                  timestamp with time zone            null=YES def=None
+  verification_code_attempts                    integer                             null=NO  def=0
+  profile_picture_url                           text                                null=YES def=None
+  is_super_admin                                boolean                             null=YES def=false
+  is_active                                     boolean                             null=YES def=true
+  is_approved                                   boolean                             null=YES def=false
+  street                                        text                                null=YES def=None
+  exterior_number                               text                                null=YES def=None
+  interior_number                               text                                null=YES def=None
+  colony                                        text                                null=YES def=None
+  city                                          text                                null=YES def=None
+  state                                         text                                null=YES def=None
+  postal_code                                   text                                null=YES def=None
+  country                                       text                                null=YES def='México'::text
+  no_show_count                                 integer                             null=NO  def=0
+  referred_by_user_id                           uuid                                null=YES def=None
+  referral_code_used                            text                                null=YES def=None
+  rfc                                           text                                null=YES def=None
+  razon_social                                  text                                null=YES def=None
+  regimen_fiscal                                text                                null=YES def=None
+  uso_cfdi                                      text                                null=YES def=None
+  codigo_postal_fiscal                          text                                null=YES def=None
+  num_reg_id_trib                               text                                null=YES def=None
+  residencia_fiscal                             text                                null=YES def=None
+  accepted_traveler_terms_version               integer                             null=YES def=None
+  accepted_agency_terms_version                 integer                             null=YES def=None
+  emergency_contact_name                        text                                null=YES def=None
+  emergency_contact_phone                       text                                null=YES def=None
+  onboarding_completed                          boolean                             null=YES def=true
+  sexo                                          text                                null=YES def=None
+  apellido_paterno                              text                                null=YES def=None
+  apellido_materno                              text                                null=YES def=None
+  must_change_password                          boolean                             null=NO  def=false
+  openpay_customer_id                           text                                null=YES def=None
+  mfa_prompt_dismissed_at                       timestamp with time zone            null=YES def=None
+
+=== public.user_platforms ===
+  id                                            uuid                                null=NO  def=gen_random_uuid()
+  user_id                                       uuid                                null=NO  def=None
+  platform                                      text                                null=NO  def=None
+  status                                        text                                null=NO  def='active'::text
+  registration_source                           text                                null=NO  def='routesred'::text
+  registered_at                                 timestamp with time zone            null=NO  def=now()
+  last_access_at                                timestamp with time zone            null=YES def=None
+  onboarding_completed                          boolean                             null=NO  def=false
+  created_at                                    timestamp with time zone            null=NO  def=now()
+  updated_at                                    timestamp with time zone            null=NO  def=now()
+
+=== public.toursred_cash_wallets ===
+  id                                            uuid                                null=NO  def=gen_random_uuid()
+  user_id                                       uuid                                null=NO  def=None
+  balance                                       numeric                             null=NO  def=0.00
+  currency                                      text                                null=NO  def='MXN'::text
+  is_active                                     boolean                             null=NO  def=true
+  created_at                                    timestamp with time zone            null=YES def=now()
+  updated_at                                    timestamp with time zone            null=YES def=now()
+
+=== public.toursred_cash_transactions ===
+  id                                            uuid                                null=NO  def=gen_random_uuid()
+  wallet_id                                     uuid                                null=NO  def=None
+  user_id                                       uuid                                null=NO  def=None
+  amount                                        numeric                             null=NO  def=None
+  balance_after                                 numeric                             null=NO  def=None
+  type                                          USER-DEFINED                        null=NO  def=None
+  description                                   text                                null=NO  def=None
+  reference_id                                  uuid                                null=YES def=None
+  reference_type                                text                                null=YES def=None
+  created_at                                    timestamp with time zone            null=YES def=now()
+  idempotency_key                               text                                null=YES def=None
+
+=== public.toursred_points_wallets ===
+  id                                            uuid                                null=NO  def=gen_random_uuid()
+  user_id                                       uuid                                null=NO  def=None
+  balance                                       integer                             null=YES def=0
+  total_earned                                  integer                             null=YES def=0
+  total_used                                    integer                             null=YES def=0
+  total_expired                                 integer                             null=YES def=0
+  is_active                                     boolean                             null=YES def=true
+  created_at                                    timestamp with time zone            null=YES def=now()
+  updated_at                                    timestamp with time zone            null=YES def=now()
+
+=== public.toursred_points_transactions ===
+  id                                            uuid                                null=NO  def=gen_random_uuid()
+  wallet_id                                     uuid                                null=NO  def=None
+  user_id                                       uuid                                null=NO  def=None
+  amount                                        integer                             null=NO  def=None
+  balance_after                                 integer                             null=NO  def=None
+  type                                          text                                null=NO  def=None
+  description                                   text                                null=NO  def=None
+  reference_id                                  uuid                                null=YES def=None
+  reference_type                                text                                null=YES def=None
+  expires_at                                    timestamp with time zone            null=YES def=None
+  created_at                                    timestamp with time zone            null=YES def=now()
+
+=== public.bookings ===
+  id                                            uuid                                null=NO  def=gen_random_uuid()
+  user_id                                       uuid                                null=NO  def=None
+  tour_id                                       uuid                                null=NO  def=None
+  agency_id                                     uuid                                null=NO  def=None
+  deposit_amount                                numeric                             null=NO  def=None
+  commission_amount                             numeric                             null=NO  def=None
+  total_price                                   numeric                             null=NO  def=None
+  status                                        text                                null=NO  def=None
+  booking_date                                  date                                null=NO  def=None
+  travelers_count                               integer                             null=NO  def=None
+  created_at                                    timestamp with time zone            null=YES def=now()
+  updated_at                                    timestamp with time zone            null=YES def=now()
+  service_charge                                numeric                             null=YES def=0
+  user_payment                                  numeric                             null=YES def=0
+  platform_revenue                              numeric                             null=YES def=0
+  payment_intent_id                             text                                null=YES def=None
+  payment_status                                text                                null=YES def='pending'::text
+  payment_method                                text                                null=YES def=None
+  paid_at                                       timestamp with time zone            null=YES def=None
+  approval_status                               USER-DEFINED                        null=YES def='pending'::approval_status
+  approval_notes                                text                                null=YES def=None
+  approved_at                                   timestamp with time zone            null=YES def=None
+  approved_by                                   uuid                                null=YES def=None
+  confirmation_email_sent                       boolean                             null=YES def=false
+  count_adultos                                 integer                             null=YES def=0
+  count_ninos                                   integer                             null=YES def=0
+  count_infantes                                integer                             null=YES def=0
+  count_adultos_mayores                         integer                             null=YES def=0
+  count_mascotas                                integer                             null=YES def=0
+  toursred_cash_used                            numeric                             null=NO  def=0.00
+  is_no_show                                    boolean                             null=NO  def=false
+  no_show_marked_at                             timestamp with time zone            null=YES def=None
+  no_show_marked_by                             uuid                                null=YES def=None
+  cancelled_at                                  timestamp with time zone            null=YES def=None
+  cancellation_type                             text                                null=YES def=None
+  cancellation_refund_amount                    numeric                             null=YES def=None
+  booking_code                                  character varying                   null=NO  def=generate_unique_booking_code()
+  has_pending_reschedule                        boolean                             null=NO  def=false
+  reschedule_response                           text                                null=YES def=None
+  reschedule_responded_at                       timestamp with time zone            null=YES def=None
+  original_booking_date                         date                                null=YES def=None
+  agency_cancellation_id                        uuid                                null=YES def=None
+  cancelled_by_agency_at                        timestamp with time zone            null=YES def=None
+  points_earned                                 integer                             null=YES def=0
+  points_used                                   integer                             null=YES def=0
+  used_membership_benefit                       boolean                             null=YES def=false
+  membership_service_fee_saved                  numeric                             null=YES def=0
+  discount_code_id                              uuid                                null=YES def=None
+  discount_amount                               numeric                             null=NO  def=0
+  service_charge_discount                       numeric                             null=YES def=0
+  referral_bonus_awarded                        boolean                             null=YES def=false
+  payment_provider                              text                                null=YES def='stripe'::text
+  paypal_order_id                               text                                null=YES def=None
+  paypal_transaction_id                         text                                null=YES def=None
+  promotion_id                                  uuid                                null=YES def=None
+  promo_discount_amount                         numeric                             null=YES def=0
+  has_partial_cancellations                     boolean                             null=NO  def=false
+  active_travelers_count                        integer                             null=YES def=None
+  checkin_status                                text                                null=YES def=None
+  checkin_at                                    timestamp with time zone            null=YES def=None
+  slot_id                                       uuid                                null=YES def=None
+  selected_date                                 date                                null=YES def=None
+  selected_time                                 time without time zone              null=YES def=None
+  pickup_type                                   text                                null=YES def=None
+  pickup_zone_name                              text                                null=YES def=None
+  pickup_zone_extra_cost                        numeric                             null=YES def=0
+  pickup_cost_type                              text                                null=YES def=None
+  selected_language                             text                                null=YES def=None
+  language_extra_cost                           numeric                             null=YES def=0
+  language_cost_type                            text                                null=YES def=None
+  restrictions_accepted                         boolean                             null=YES def=false
+  has_pending_slot_reschedule                   boolean                             null=NO  def=false
+  slot_reschedule_response                      text                                null=YES def=None
+  slot_reschedule_responded_at                  timestamp with time zone            null=YES def=None
+  selected_seats                                ARRAY                               null=YES def=None
+  needs_seat_reselection                        boolean                             null=YES def=false
+  previous_selected_seats                       ARRAY                               null=YES def=None
+  slot_reschedule_alternative_slot_id           uuid                                null=YES def=None
+  es_reserva_preventa                           boolean                             null=YES def=false
+  preventa_comision_descuento                   numeric                             null=YES def=0
+  travel_insurance_included                     boolean                             null=YES def=false
+  travel_insurance_cost                         numeric                             null=YES def=0
+  insurance_email_sent                          boolean                             null=YES def=false
+  wallet_charged_at_checkin                     numeric                             null=NO  def=0
+  points_earned_at_checkin                      integer                             null=NO  def=0
+  insurance_discount_code_id                    uuid                                null=YES def=None
+  insurance_discount_amount                     numeric                             null=YES def=0
+  has_payment_plan                              boolean                             null=NO  def=false
+  payment_plan_total                            numeric                             null=YES def=None
+  payment_plan_paid                             numeric                             null=YES def=0
+  payment_plan_status                           text                                null=YES def=None
+  selected_payment_mode                         text                                null=YES def=None
+  source_type                                   text                                null=NO  def='organic'::text
+  featured_slot_id                              uuid                                null=YES def=None
+  insurance_days                                integer                             null=YES def=None
+  membership_purchased                          boolean                             null=NO  def=false
+  membership_plan                               text                                null=YES def=None
+  membership_cost                               numeric                             null=NO  def=0
+  admin_cancellation_id                         uuid                                null=YES def=None
+  incomplete_payment_reminder_72h_sent_at       timestamp with time zone            null=YES def=None
+  incomplete_payment_reminder_24h_sent_at       timestamp with time zone            null=YES def=None
+  initial_payment_amount                        numeric                             null=YES def=None
+  conekta_method                                text                                null=YES def=None
+  bnpl_product_type                             text                                null=YES def=None
+  conekta_sub_charges                           jsonb                               null=YES def=None
+  amount_due_now                                numeric                             null=YES def=None
+
+=== public.conversations ===
+  id                                            uuid                                null=NO  def=gen_random_uuid()
+  title                                         text                                null=YES def=None
+  type                                          text                                null=NO  def='general'::text
+  booking_id                                    uuid                                null=YES def=None
+  tour_id                                       uuid                                null=YES def=None
+  status                                        text                                null=NO  def='active'::text
+  created_by                                    uuid                                null=NO  def=None
+  created_at                                    timestamp with time zone            null=YES def=now()
+  updated_at                                    timestamp with time zone            null=YES def=now()
+  last_message_at                               timestamp with time zone            null=YES def=now()
+
+=== public.messages ===
+  id                                            uuid                                null=NO  def=gen_random_uuid()
+  conversation_id                               uuid                                null=NO  def=None
+  sender_id                                     uuid                                null=NO  def=None
+  content                                       text                                null=NO  def=None
+  message_type                                  text                                null=NO  def='text'::text
+  attachment_url                                text                                null=YES def=None
+  attachment_name                               text                                null=YES def=None
+  attachment_size                               integer                             null=YES def=None
+  is_edited                                     boolean                             null=YES def=false
+  edited_at                                     timestamp with time zone            null=YES def=None
+  created_at                                    timestamp with time zone            null=YES def=now()
+  updated_at                                    timestamp with time zone            null=YES def=now()
+
+=== public.notifications ===
+  id                                            uuid                                null=NO  def=gen_random_uuid()
+  user_id                                       uuid                                null=NO  def=None
+  type                                          USER-DEFINED                        null=NO  def=None
+  title                                         text                                null=NO  def=None
+  message                                       text                                null=NO  def=None
+  data                                          jsonb                               null=YES def='{}'::jsonb
+  is_read                                       boolean                             null=YES def=false
+  created_at                                    timestamp with time zone            null=YES def=now()
+  updated_at                                    timestamp with time zone            null=YES def=now()
+  expires_at                                    timestamp with time zone            null=YES def=None
+
+=== public.audit_logs ===
+  id                                            uuid                                null=NO  def=gen_random_uuid()
+  tenant_type                                   USER-DEFINED                        null=NO  def=None
+  actor_id                                      uuid                                null=YES def=None
+  actor_email                                   text                                null=YES def=None
+  actor_role                                    text                                null=YES def=None
+  target_id                                     text                                null=YES def=None
+  target_table                                  text                                null=NO  def=None
+  action                                        text                                null=NO  def=None
+  old_values                                    jsonb                               null=YES def=None
+  new_values                                    jsonb                               null=YES def=None
+  diff                                          jsonb                               null=YES def=None
+  ip_address                                    inet                                null=YES def=None
+  ip_masked                                     text                                null=YES def=None
+  user_agent                                    text                                null=YES def=None
+  session_id                                    text                                null=YES def=None
+  correlation_id                                uuid                                null=YES def=None
+  metadata                                      jsonb                               null=YES def=None
+  error_message                                 text                                null=YES def=None
+  created_at                                    timestamp with time zone            null=NO  def=now()
+  country                                       text                                null=YES def=None
+  country_code                                  text                                null=YES def=None
+  city                                          text                                null=YES def=None
+  region                                        text                                null=YES def=None
+  severity                                      text                                null=NO  def='info'::text
+
+=== public.support_tickets ===
+  id                                            uuid                                null=NO  def=gen_random_uuid()
+  folio                                         text                                null=NO  def=None
+  tipo                                          USER-DEFINED                        null=NO  def='general'::support_ticket_type
+  category_id                                   uuid                                null=NO  def=None
+  subcategory_id                                uuid                                null=NO  def=None
+  prioridad                                     USER-DEFINED                        null=NO  def='media'::support_ticket_priority
+  status                                        USER-DEFINED                        null=NO  def='sin_atender'::support_ticket_status
+  user_id                                       uuid                                null=YES def=None
+  solicitante_nombre                            text                                null=NO  def=None
+  solicitante_email                             text                                null=NO  def=None
+  descripcion                                   text                                null=NO  def=None
+  agente_asignado_id                            uuid                                null=YES def=None
+  agencia_asignada_id                           uuid                                null=YES def=None
+  ticket_relacionado_id                         uuid                                null=YES def=None
+  created_at                                    timestamp with time zone            null=YES def=now()
+  updated_at                                    timestamp with time zone            null=YES def=now()
+  closed_at                                     timestamp with time zone            null=YES def=None
+  extra_data                                    jsonb                               null=YES def=None
+  sla_deadline                                  timestamp with time zone            null=YES def=None
+
+=== public.admin_permissions ===
+  user_id                                       uuid                                null=NO  def=None
+  can_manage_agencies                           boolean                             null=YES def=false
+  can_manage_users                              boolean                             null=YES def=false
+  can_manage_destinations                       boolean                             null=YES def=false
+  can_manage_reviews                            boolean                             null=YES def=false
+  can_manage_messages                           boolean                             null=YES def=false
+  can_manage_settings                           boolean                             null=YES def=false
+  can_manage_memberships                        boolean                             null=YES def=false
+  created_at                                    timestamp with time zone            null=YES def=now()
+  updated_at                                    timestamp with time zone            null=YES def=now()
+  can_manage_travelers                          boolean                             null=YES def=false
+  can_manage_inquiries                          boolean                             null=YES def=false
+  can_manage_categories                         boolean                             null=YES def=false
+  can_manage_departure_points                   boolean                             null=YES def=false
+  can_manage_points                             boolean                             null=YES def=false
+  can_manage_discount_codes                     boolean                             null=YES def=false
+  can_view_accounting                           boolean                             null=NO  def=false
+  can_export_sat_xml                            boolean                             null=NO  def=false
+  can_manage_chart_of_accounts                  boolean                             null=NO  def=false
+  can_manage_service_desk                       boolean                             null=YES def=false
+  can_manage_executives                         boolean                             null=YES def=false
+  can_view_audit_log                            boolean                             null=NO  def=false
+  can_view_audit_sensitive_data                 boolean                             null=NO  def=false
+  can_export_audit_log                          boolean                             null=NO  def=false
+  can_cancel_bookings                           boolean                             null=NO  def=false
+
+=== public.memberships ===
+  id                                            uuid                                null=NO  def=gen_random_uuid()
+  user_id                                       uuid                                null=NO  def=None
+  stripe_customer_id                            text                                null=NO  def=None
+  stripe_subscription_id                        text                                null=NO  def=None
+  plan_type                                     text                                null=NO  def=None
+  status                                        text                                null=NO  def=None
+  start_date                                    timestamp with time zone            null=NO  def=now()
+  current_period_start                          timestamp with time zone            null=NO  def=None
+  current_period_end                            timestamp with time zone            null=NO  def=None
+  cancel_at_period_end                          boolean                             null=YES def=false
+  cancelled_at                                  timestamp with time zone            null=YES def=None
+  service_fee_exemption_used                    numeric                             null=NO  def=0
+  service_fee_exemption_reset_date              timestamp with time zone            null=NO  def=None
+  created_at                                    timestamp with time zone            null=YES def=now()
+  updated_at                                    timestamp with time zone            null=YES def=now()
+  renewal_reminder_sent                         boolean                             null=YES def=false
+  renewal_reminder_sent_at                      timestamp with time zone            null=YES def=None
+  exemption_period_start                        timestamp with time zone            null=YES def=now()
+  price_paid                                    numeric                             null=YES def=0
+  renewal_amount                                numeric                             null=YES def=0
+
+=== public.agencies ===
+  id                                            uuid                                null=NO  def=gen_random_uuid()
+  user_id                                       uuid                                null=NO  def=None
+  name                                          text                                null=NO  def=None
+  description                                   text                                null=YES def=None
+  logo                                          text                                null=YES def=None
+  contact_email                                 text                                null=NO  def=None
+  contact_phone                                 text                                null=YES def=None
+  website                                       text                                null=YES def=None
+  rating                                        numeric                             null=YES def=None
+  is_active                                     boolean                             null=YES def=true
+  created_at                                    timestamp with time zone            null=YES def=now()
+  updated_at                                    timestamp with time zone            null=YES def=now()
+  rfc                                           text                                null=YES def=None
+  razon_social                                  text                                null=YES def=None
+  regimen_fiscal                                text                                null=YES def=None
+  domicilio_fiscal                              text                                null=YES def=None
+  banco                                         text                                null=YES def=None
+  cuenta_clabe                                  text                                null=YES def=None
+  titular_cuenta                                text                                null=YES def=None
+  commission_rate                               numeric                             null=YES def=None
+  rnt                                           text                                null=YES def=None
+  street                                        text                                null=YES def=None
+  exterior_number                               text                                null=YES def=None
+  interior_number                               text                                null=YES def=None
+  colony                                        text                                null=YES def=None
+  city                                          text                                null=YES def=None
+  state                                         text                                null=YES def=None
+  postal_code                                   text                                null=YES def=None
+  country                                       text                                null=YES def='México'::text
+  account_executive_id                          uuid                                null=YES def=None
+  registered_by_executive                       boolean                             null=YES def=false
+  signed_contract_url                           text                                null=YES def=None
+  approval_period_start                         timestamp with time zone            null=YES def=None
+  first_tour_published_at                       timestamp with time zone            null=YES def=None
+  first_paid_booking_at                         timestamp with time zone            null=YES def=None
+  is_approved                                   boolean                             null=NO  def=false
+  rejection_reason                              text                                null=YES def=None
+  custom_slug                                   text                                null=YES def=None
+  cover_image_url                               text                                null=YES def=None
+  onboarding_status                             text                                null=NO  def='pending_documents'::text
+  persona_type                                  text                                null=NO  def=None
+  representante_legal_nombre                    text                                null=YES def=None
+  terms_accepted_at                             timestamp with time zone            null=YES def=None
+  documents_completed_at                        timestamp with time zone            null=YES def=None
+  approved_at                                   timestamp with time zone            null=YES def=None
+  approved_by                                   uuid                                null=YES def=None
+  rejected_at                                   timestamp with time zone            null=YES def=None
+  rejected_by                                   uuid                                null=YES def=None
+  rejection_category                            text                                null=YES def=None
+  reversal_at                                   timestamp with time zone            null=YES def=None
+  reversal_by                                   uuid                                null=YES def=None
+  reversal_reason                               text                                null=YES def=None
+  commission_percentage                         numeric                             null=YES def=None
+  pending_amendment_id                          uuid                                null=YES def=None
+  documents_submitted_at                        timestamp with time zone            null=YES def=None
+
+=== public.reviews ===
+  id                                            uuid                                null=NO  def=gen_random_uuid()
+  user_id                                       uuid                                null=NO  def=None
+  tour_id                                       uuid                                null=NO  def=None
+  agency_id                                     uuid                                null=NO  def=None
+  rating                                        integer                             null=NO  def=None
+  comment                                       text                                null=NO  def=None
+  reply                                         text                                null=YES def=None
+  is_visible                                    boolean                             null=YES def=true
+  created_at                                    timestamp with time zone            null=YES def=now()
+  updated_at                                    timestamp with time zone            null=YES def=now()
+
+=== public.platform_settings ===
+  id                                            uuid                                null=NO  def=gen_random_uuid()
+  service_charge_percentage                     numeric                             null=NO  def=5.00
+  agency_commission_percentage                  numeric                             null=NO  def=15.00
+  updated_at                                    timestamp with time zone            null=YES def=now()
+  updated_by                                    uuid                                null=YES def=None
+  stripe_monthly_price_id                       text                                null=YES def=None
+  stripe_annual_price_id                        text                                null=YES def=None
+  membership_monthly_price                      numeric                             null=YES def=49.00
+  membership_annual_price                       numeric                             null=YES def=490.00
+  default_max_referrals_per_user                integer                             null=YES def=10
+  referral_bonus_points                         integer                             null=YES def=5000
+  referral_program_enabled                      boolean                             null=YES def=true
+  mercadopago_enabled                           boolean                             null=YES def=false
+  paypal_enabled                                boolean                             null=YES def=false
+  mercadopago_public_key                        text                                null=YES def=''::text
+  paypal_client_id                              text                                null=YES def=''::text
+  paypal_sandbox                                boolean                             null=YES def=true
+  pac_provider                                  text                                null=NO  def='none'::text
+  pac_organization_id                           text                                null=YES def=None
+  cfdi_serie_booking                            text                                null=NO  def='A'::text
+  cfdi_serie_commission                         text                                null=NO  def='B'::text
+  pac_sandbox_mode                              boolean                             null=NO  def=true
+  pac_issuer_rfc                                text                                null=YES def=None
+  pac_issuer_razon_social                       text                                null=YES def=None
+  pac_issuer_regimen_fiscal                     text                                null=YES def=None
+  accounting_provider                           text                                null=NO  def='none'::text
+  accounting_sync_enabled                       boolean                             null=NO  def=false
+  zoho_client_id                                text                                null=YES def=None
+  zoho_org_id                                   text                                null=YES def=None
+  zoho_region                                   text                                null=NO  def='com'::text
+  zoho_sandbox_mode                             boolean                             null=NO  def=true
+  odoo_url                                      text                                null=YES def=''::text
+  odoo_database                                 text                                null=YES def=''::text
+  travel_insurance_price_per_day_per_traveler   numeric                             null=YES def=79.00
+  supplement_commission_percentage              numeric                             null=NO  def=10.00
+  hero_background_url                           text                                null=YES def=None
+  cfdi_serie_installment                        text                                null=NO  def='AI'::text
+  payment_plan_service_charge_pct               numeric                             null=NO  def=5.00
+  pac_issuer_postal_code                        text                                null=YES def=None
+  geo_provider                                  text                                null=NO  def='ipinfo_lite'::text
+  login_max_attempts_user                       integer                             null=NO  def=5
+  login_max_attempts_ip                         integer                             null=NO  def=20
+  login_block_duration_min                      integer                             null=NO  def=30
+  login_delay_base_ms                           integer                             null=NO  def=1000
+  login_delay_max_ms                            integer                             null=NO  def=30000
+  maintenance_mode                              boolean                             null=NO  def=false
+  maintenance_message                           text                                null=NO  def='Estamos realizando tareas de mantenimiento. Estaremos de vuelta muy pronto.'::text
+  maintenance_enabled_at                        timestamp with time zone            null=YES def=None
+  announcement_active                           boolean                             null=NO  def=false
+  announcement_title                            text                                null=NO  def=''::text
+  announcement_message                          text                                null=NO  def=''::text
+  announcement_cta_text                         text                                null=NO  def='Aceptar'::text
+  announcement_activated_at                     timestamp with time zone            null=YES def=None
+  platform_url                                  text                                null=NO  def='https://toursredmx.netlify.app'::text
+  oauth_google_login_enabled                    boolean                             null=NO  def=true
+  oauth_azure_login_enabled                     boolean                             null=NO  def=true
+  oauth_twitter_login_enabled                   boolean                             null=NO  def=false
+  oauth_facebook_login_enabled                  boolean                             null=NO  def=false
+  oauth_google_link_enabled                     boolean                             null=NO  def=true
+  oauth_azure_link_enabled                      boolean                             null=NO  def=true
+  oauth_twitter_link_enabled                    boolean                             null=NO  def=false
+  oauth_facebook_link_enabled                   boolean                             null=NO  def=false
+  travel_insurance_cost_per_day_per_traveler    numeric                             null=YES def=59.00
+  travel_insurance_commission_pct               numeric                             null=YES def=20.00
+  travel_insurance_provider_name                text                                null=YES def='Universal Assistance'::text
+  stripe_bookings_enabled                       boolean                             null=NO  def=true
+  stripe_gift_cards_enabled                     boolean                             null=NO  def=true
+  stripe_memberships_enabled                    boolean                             null=NO  def=true
+  optional_service_commission_percentage        numeric                             null=NO  def=15.00
+  membership_service_fee_exemption_monthly_limit numeric                             null=YES def=500
+  travel_insurance_enabled                      boolean                             null=NO  def=true
+  conekta_enabled                               boolean                             null=YES def=false
+  gift_card_amounts                             jsonb                               null=YES def='[100, 200, 500, 1000]'::jsonb
+  gift_card_max_amount                          integer                             null=YES def=10000
+  openpay_enabled                               boolean                             null=YES def=true
+  openpay_commission_pct                        numeric                             null=YES def=2.9
+  openpay_commission_fixed                      numeric                             null=YES def=0
+  stripe_commission_pct                         numeric                             null=YES def=3.1034
+  stripe_commission_fixed                       numeric                             null=YES def=2.5862
+  paypal_commission_pct                         numeric                             null=YES def=3.95
+  paypal_commission_fixed                       numeric                             null=YES def=4.0
+  mercadopago_commission_pct                    numeric                             null=YES def=3.49
+  mercadopago_commission_fixed                  numeric                             null=YES def=4.0
+  conekta_commission_pct                        numeric                             null=YES def=3.29
+  conekta_commission_fixed                      numeric                             null=YES def=2.5
+  openpay_public_key                            text                                null=YES def=None
+  turnstile_auth_enabled                        boolean                             null=NO  def=false
+  mfa_required_for_admins                       boolean                             null=NO  def=false
+  mfa_required_for_accountant                   boolean                             null=NO  def=false
+  passkeys_enabled                              boolean                             null=NO  def=false
+
+=== public.payment_transactions ===
+  id                                            uuid                                null=NO  def=gen_random_uuid()
+  booking_id                                    uuid                                null=NO  def=None
+  stripe_payment_intent_id                      text                                null=YES def=None
+  amount                                        numeric                             null=NO  def=None
+  currency                                      text                                null=NO  def='mxn'::text
+  status                                        text                                null=NO  def=None
+  payment_method_type                           text                                null=YES def=None
+  stripe_fee                                    numeric                             null=YES def=0
+  net_amount                                    numeric                             null=NO  def=None
+  metadata                                      jsonb                               null=YES def=None
+  created_at                                    timestamp with time zone            null=YES def=now()
+  updated_at                                    timestamp with time zone            null=YES def=now()
+  payment_processor                             text                                null=YES def=None
+  paypal_capture_id                             text                                null=YES def=None
+  mercadopago_payment_id                        text                                null=YES def=None
+  processor_fee                                 numeric                             null=YES def=0
+  charge_context                                text                                null=NO  def='booking_deposit'::text
+  charge_reference_id                           uuid                                null=YES def=None
+  conekta_order_id                              text                                null=YES def=None
+  conekta_charge_id                             text                                null=YES def=None
+  bnpl_product_type                             text                                null=YES def=None
+  p_idempotency_key                             text                                null=YES def=None
+  openpay_charge_id                             text                                null=YES def=None
+  processor_fee_base                            numeric                             null=YES def=None
+  processor_fee_iva                             numeric                             null=YES def=None
+
+=== public.financial_transactions ===
+  id                                            uuid                                null=NO  def=gen_random_uuid()
+  transaction_date                              timestamp with time zone            null=NO  def=now()
+  transaction_type                              text                                null=NO  def=None
+  agency_id                                     uuid                                null=NO  def=None
+  booking_id                                    uuid                                null=YES def=None
+  tour_id                                       uuid                                null=YES def=None
+  cancellation_id                               uuid                                null=YES def=None
+  payout_id                                     uuid                                null=YES def=None
+  gross_amount                                  numeric                             null=NO  def=0
+  platform_commission                           numeric                             null=NO  def=0
+  net_to_agency                                 numeric                             null=NO  def=0
+  platform_revenue                              numeric                             null=NO  def=0
+  description                                   text                                null=NO  def=None
+  payment_status                                text                                null=NO  def='pending'::text
+  reconciliation_status                         text                                null=NO  def='pending'::text
+  metadata                                      jsonb                               null=YES def=None
+  created_by_user_id                            uuid                                null=YES def=None
+  created_at                                    timestamp with time zone            null=NO  def=now()
+  transaction_code                              text                                null=YES def=None
+  tour_start_date                               date                                null=YES def=None
+  commission_rate                               numeric                             null=YES def=None
+  commission_amount                             numeric                             null=YES def=None
+  notes                                         text                                null=YES def=None
+  updated_at                                    timestamp with time zone            null=NO  def=now()
+
+=== public.commission_records ===
+  id                                            uuid                                null=NO  def=gen_random_uuid()
+  booking_id                                    uuid                                null=NO  def=None
+  agency_id                                     uuid                                null=NO  def=None
+  tour_id                                       uuid                                null=NO  def=None
+  total_tour_price                              numeric                             null=NO  def=None
+  agency_commission_rate                        numeric                             null=NO  def=None
+  agency_commission_amount                      numeric                             null=NO  def=None
+  service_charge_rate                           numeric                             null=NO  def=None
+  service_charge_amount                         numeric                             null=NO  def=None
+  platform_total_revenue                        numeric                             null=NO  def=None
+  agency_net_amount                             numeric                             null=NO  def=None
+  status                                        text                                null=NO  def='pending'::text
+  processed_at                                  timestamp with time zone            null=YES def=None
+  created_at                                    timestamp with time zone            null=YES def=now()
+  payout_id                                     uuid                                null=YES def=None
+  payout_scheduled_date                         date                                null=YES def=None
+  reconciliation_status                         text                                null=NO  def='pending'::text
+  reconciliation_notes                          text                                null=YES def=None
+  tour_completion_date                          date                                null=YES def=None
+  tour_end_date                                 date                                null=YES def=None
+  payment_method                                text                                null=YES def=None
+  payment_receipt_url                           text                                null=YES def=None
+  payment_receipt_filename                      text                                null=YES def=None
+  payment_notes                                 text                                null=YES def=None
+  notified_at                                   timestamp with time zone            null=YES def=None
+  preventa_comision_descuento                   numeric                             null=YES def=0
+  travel_insurance_amount                       numeric                             null=NO  def=0
+  gross_service_charge_amount                   numeric                             null=NO  def=0
+  membership_exemption_total                    numeric                             null=NO  def=0
+  payment_plan_service_charges                  numeric                             null=NO  def=0
+  payment_plan_membership_exemptions            numeric                             null=NO  def=0
+  optional_services_subtotal                    numeric                             null=NO  def=0
+  optional_services_commission                  numeric                             null=NO  def=0
+  optional_services_service_charge              numeric                             null=NO  def=0
+  optional_services_agency_net                  numeric                             null=NO  def=0
+  supplements_subtotal                          numeric                             null=NO  def=0
+  supplements_commission                        numeric                             null=NO  def=0
+  supplements_service_charge                    numeric                             null=NO  def=0
+  supplements_agency_net                        numeric                             null=NO  def=0
+  late_payment_penalty_total                    numeric                             null=YES def=0
+  late_payment_penalty_commission               numeric                             null=YES def=0
+  late_payment_penalty_agency_net               numeric                             null=YES def=0
+
+=== public.payout_schedules ===
+  id                                            uuid                                null=NO  def=gen_random_uuid()
+  agency_id                                     uuid                                null=NO  def=None
+  frequency                                     text                                null=NO  def='weekly'::text
+  day_of_week                                   integer                             null=YES def=None
+  day_of_month                                  integer                             null=YES def=None
+  minimum_payout_amount                         numeric                             null=NO  def=500.00
+  preferred_payment_method                      text                                null=NO  def='spei_transfer'::text
+  bank_account_holder_name                      text                                null=YES def=None
+  bank_name                                     text                                null=YES def=None
+  bank_account_number                           text                                null=YES def=None
+  bank_clabe                                    text                                null=YES def=None
+  bank_swift_code                               text                                null=YES def=None
+  payment_currency                              text                                null=NO  def='MXN'::text
+  automatic_payout_enabled                      boolean                             null=NO  def=false
+  is_active                                     boolean                             null=NO  def=true
+  created_at                                    timestamp with time zone            null=NO  def=now()
+  updated_at                                    timestamp with time zone            null=NO  def=now()
+  last_payout_date                              date                                null=YES def=None
+  next_scheduled_payout                         date                                null=YES def=None
+  notes                                         text                                null=YES def=None
+
+=== public.discount_codes ===
+  id                                            uuid                                null=NO  def=gen_random_uuid()
+  code                                          text                                null=NO  def=None
+  description                                   text                                null=NO  def=None
+  discount_type                                 text                                null=NO  def=None
+  discount_value                                numeric                             null=NO  def=None
+  applicable_to                                 text                                null=NO  def=None
+  is_single_use                                 boolean                             null=NO  def=false
+  is_active                                     boolean                             null=NO  def=true
+  valid_from                                    timestamp with time zone            null=NO  def=now()
+  valid_until                                   timestamp with time zone            null=NO  def=None
+  max_uses                                      integer                             null=YES def=None
+  times_used                                    integer                             null=NO  def=0
+  created_by                                    uuid                                null=YES def=None
+  created_at                                    timestamp with time zone            null=YES def=now()
+  updated_at                                    timestamp with time zone            null=YES def=now()
+  agency_id                                     uuid                                null=YES def=None
+  tour_id                                       uuid                                null=YES def=None
+  max_discount_amount                           numeric                             null=YES def=None
+  membership_plan_type                          text                                null=YES def='both'::text
+  discount_applies_to                           text                                null=NO  def='total_price'::text
+
+=== routesred.transport_providers ===
+  id                                            uuid                                null=NO  def=gen_random_uuid()
+  owner_user_id                                 uuid                                null=NO  def=None
+  provider_type                                 text                                null=NO  def='company'::text
+  first_name                                    text                                null=YES def=None
+  last_name                                     text                                null=YES def=None
+  legal_name                                    text                                null=YES def=None
+  legal_representative                          text                                null=YES def=None
+  trade_name                                    text                                null=YES def=None
+  slug                                          text                                null=NO  def=None
+  rfc                                           text                                null=YES def=None
+  description                                   text                                null=YES def=None
+  logo_url                                      text                                null=YES def=None
+  cover_image_url                               text                                null=YES def=None
+  phone                                         text                                null=YES def=None
+  email                                         text                                null=YES def=None
+  website                                       text                                null=YES def=None
+  country_code                                  text                                null=NO  def='MX'::text
+  state                                         text                                null=YES def=None
+  city                                          text                                null=YES def=None
+  address                                       text                                null=YES def=None
+  postal_code                                   text                                null=YES def=None
+  coordinates                                   USER-DEFINED                        null=YES def=None
+  status                                        text                                null=NO  def='draft'::text
+  verification_status                           text                                null=NO  def='unverified'::text
+  rating_average                                numeric                             null=NO  def=0
+  rating_count                                  integer                             null=NO  def=0
+  completed_services_count                      integer                             null=NO  def=0
+  active                                        boolean                             null=NO  def=true
+  created_at                                    timestamp with time zone            null=NO  def=now()
+  updated_at                                    timestamp with time zone            null=NO  def=now()
+
+=== routesred.transport_provider_users ===
+  id                                            uuid                                null=NO  def=gen_random_uuid()
+  transport_provider_id                         uuid                                null=NO  def=None
+  user_id                                       uuid                                null=NO  def=None
+  role                                          text                                null=NO  def=None
+  status                                        text                                null=NO  def='active'::text
+  invited_by                                    uuid                                null=YES def=None
+  joined_at                                     timestamp with time zone            null=NO  def=now()
+  created_at                                    timestamp with time zone            null=NO  def=now()
+  updated_at                                    timestamp with time zone            null=NO  def=now()
+
+=== routesred.airports ===
+  id                                            uuid                                null=NO  def=gen_random_uuid()
+  iata_code                                     text                                null=YES def=None
+  icao_code                                     text                                null=YES def=None
+  name                                          text                                null=NO  def=None
+  city                                          text                                null=NO  def=None
+  state                                         text                                null=YES def=None
+  country                                       text                                null=NO  def='Mexico'::text
+  country_code                                  text                                null=NO  def='MX'::text
+  coordinates                                   USER-DEFINED                        null=YES def=None
+  timezone                                      text                                null=YES def=None
+  active                                        boolean                             null=NO  def=true
+  created_at                                    timestamp with time zone            null=NO  def=now()
+  updated_at                                    timestamp with time zone            null=NO  def=now()
+
+=== routesred.amenities ===
+  id                                            uuid                                null=NO  def=gen_random_uuid()
+  code                                          text                                null=NO  def=None
+  name                                          text                                null=NO  def=None
+  description                                   text                                null=YES def=None
+  icon                                          text                                null=YES def=None
+  active                                        boolean                             null=NO  def=true
+  sort_order                                    integer                             null=NO  def=0
+  created_at                                    timestamp with time zone            null=NO  def=now()
+  updated_at                                    timestamp with time zone            null=NO  def=now()
+
+=== routesred.vehicles ===
+  id                                            uuid                                null=NO  def=gen_random_uuid()
+  transport_provider_id                         uuid                                null=NO  def=None
+  vehicle_type_id                               uuid                                null=NO  def=None
+  internal_name                                 text                                null=NO  def=None
+  brand                                         text                                null=YES def=None
+  model                                         text                                null=YES def=None
+  year                                          integer                             null=YES def=None
+  license_plate                                 text                                null=YES def=None
+  capacity                                      integer                             null=NO  def=None
+  luggage_capacity                              integer                             null=YES def=None
+  description                                   text                                null=YES def=None
+  primary_image_url                             text                                null=YES def=None
+  status                                        text                                null=NO  def='active'::text
+  coordinates                                   USER-DEFINED                        null=YES def=None
+  created_at                                    timestamp with time zone            null=NO  def=now()
+  updated_at                                    timestamp with time zone            null=NO  def=now()
+
+=== routesred.vehicle_types ===
+  id                                            uuid                                null=NO  def=gen_random_uuid()
+  code                                          text                                null=NO  def=None
+  name                                          text                                null=NO  def=None
+  description                                   text                                null=YES def=None
+  icon                                          text                                null=YES def=None
+  min_capacity                                  integer                             null=YES def=None
+  max_capacity                                  integer                             null=YES def=None
+  active                                        boolean                             null=NO  def=true
+  sort_order                                    integer                             null=NO  def=0
+  created_at                                    timestamp with time zone            null=NO  def=now()
+  updated_at                                    timestamp with time zone            null=NO  def=now()
+
+=== corporate.nature_stay_hub_submissions ===
+  id                                            uuid                                null=NO  def=gen_random_uuid()
+  host_name                                     text                                null=NO  def=None
+  host_email                                    text                                null=NO  def=None
+  host_phone                                    text                                null=NO  def=None
+  accommodation_name                            text                                null=NO  def=None
+  accommodation_type                            text                                null=YES def=None
+  accommodation_type_other                      text                                null=YES def=None
+  location                                      text                                null=YES def=None
+  capacity                                      text                                null=YES def=None
+  natural_environment                           text                                null=YES def=None
+  social_links                                  text                                null=YES def=None
+  google_maps_url                               text                                null=YES def=None
+  email_status                                  text                                null=NO  def='pending'::text
+  email_error                                   text                                null=YES def=None
+  ip_address                                    text                                null=YES def=None
+  user_agent                                    text                                null=YES def=None
+  created_at                                    timestamp with time zone            null=NO  def=now()
