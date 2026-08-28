@@ -1,53 +1,46 @@
 -- ============================================================================
--- Migration: C5 — nature_stay units + units_public view
--- Purpose: Create units table, publication trigger, public view, RLS, grants
+-- Migration: C5 — nature_stay units + unit_private_details + views
+-- Purpose: Create units table (marketplace+operational, NO metadata),
+--          unit_private_details (metadata), public + owner views, publication trigger
 -- Schema: nature_stay
--- Backwards-compatible: YES (new table + new view)
+-- Backwards-compatible: YES (new tables + new views)
 -- ToursRed impact: NONE
 -- ============================================================================
 --
 -- Objects created:
---   - Table: nature_stay.units
---   - View:  nature_stay.units_public (security_invoker)
+--   - Table: nature_stay.units (marketplace + operational, NO metadata)
+--   - Table: nature_stay.unit_private_details (metadata)
+--   - View:  nature_stay.units_public (security_barrier)
+--   - View:  nature_stay.unit_owner_view (security_invoker)
 --   - Function: nature_stay.validate_unit_publication()
 --   - Trigger: trg_units_updated_at
 --   - Trigger: trg_units_validate_publication
+--   - Trigger: trg_unit_private_details_updated_at
 --
 -- Dependencies:
 --   C4 (properties for FK)
 --   C2a (unit_types for FK)
+--   C3 (host_accounts for ownership)
 --
--- Key changes from earlier design:
---   max_guests:    NOT NULL (was nullable)
---   base_guests:   NOT NULL DEFAULT 1 (was nullable)
---   minimum_nights: NOT NULL DEFAULT 1 (was nullable)
+-- ARCHITECTURE — Physical Split (Option A):
+--   units: marketplace + operational columns only. NO metadata.
+--   unit_private_details: metadata jsonb. Owner/admin only.
 --
--- Column-level INSERT (authenticated):
---   property_id, unit_type_id, name, slug, description, quantity,
---   max_guests, base_guests, max_adults, max_children, max_infants,
---   bedrooms, beds, bathrooms, area_m2, pricing_mode, base_price,
---   extra_guest_price, currency, minimum_nights, maximum_nights,
---   pets_allowed, pet_fee, max_pets, check_in_time_override,
---   check_out_time_override, metadata
+--   Marketplace reads: units_public (security_barrier view).
+--     Bypasses RLS as postgres. WHERE filters unit + property + host state.
+--   Owner reads: unit_owner_view (security_invoker view).
+--     RLS on underlying tables ensures owner sees only own units.
 --
---   NOT insertable: id, status, is_published, archived_at, created_at, updated_at
---   is_published defaults to false. status defaults to 'draft'.
---
--- Column-level UPDATE (authenticated):
---   unit_type_id, name, slug, description, quantity, max_guests,
---   base_guests, max_adults, max_children, max_infants, bedrooms, beds,
---   bathrooms, area_m2, pricing_mode, base_price, extra_guest_price,
---   currency, minimum_nights, maximum_nights, pets_allowed, pet_fee,
---   max_pets, check_in_time_override, check_out_time_override,
---   is_published, metadata
---
---   NOT updateable: id, property_id, status, archived_at, created_at, updated_at
+-- Ownership path:
+--   auth.uid() → host_accounts.user_id → host_accounts.host_id
+--   → properties.host_id → properties.id → units.property_id
 --
 -- 0 SECURITY DEFINER.
+-- All functions: SECURITY INVOKER + explicit search_path.
 -- ============================================================================
 
 -- ============================================================================
--- 1. Table: nature_stay.units
+-- 1. Table: nature_stay.units (marketplace + operational)
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS nature_stay.units (
@@ -80,7 +73,6 @@ CREATE TABLE IF NOT EXISTS nature_stay.units (
   check_out_time_override time,
   status                  text            NOT NULL DEFAULT 'draft',
   is_published            boolean         NOT NULL DEFAULT false,
-  metadata                jsonb           NOT NULL DEFAULT '{}'::jsonb,
   created_at              timestamptz     NOT NULL DEFAULT now(),
   updated_at              timestamptz     NOT NULL DEFAULT now(),
   archived_at             timestamptz,
@@ -113,9 +105,8 @@ CREATE TABLE IF NOT EXISTS nature_stay.units (
   CONSTRAINT units_currency_format CHECK (currency ~ '^[A-Z]{3}$')
 );
 
--- ============================================================================
--- 2. Indexes
--- ============================================================================
+-- NO metadata column in this table.
+
 CREATE INDEX IF NOT EXISTS idx_units_property_id
   ON nature_stay.units (property_id);
 
@@ -126,8 +117,22 @@ CREATE INDEX IF NOT EXISTS idx_units_unit_type_id
   ON nature_stay.units (unit_type_id);
 
 -- ============================================================================
+-- 2. Table: nature_stay.unit_private_details
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS nature_stay.unit_private_details (
+  unit_id                 uuid          NOT NULL,
+  metadata                jsonb         NOT NULL DEFAULT '{}'::jsonb,
+  created_at              timestamptz   NOT NULL DEFAULT now(),
+  updated_at              timestamptz   NOT NULL DEFAULT now(),
+
+  CONSTRAINT unit_private_details_pkey PRIMARY KEY (unit_id)
+);
+
+-- ============================================================================
 -- 3. Foreign keys
 -- ============================================================================
+
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -151,38 +156,23 @@ BEGIN
       ADD CONSTRAINT units_unit_type_id_fkey
       FOREIGN KEY (unit_type_id) REFERENCES nature_stay.unit_types(id) ON DELETE RESTRICT;
   END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE constraint_name = 'unit_private_details_unit_id_fkey'
+      AND table_name = 'unit_private_details'
+      AND table_schema = 'nature_stay'
+  ) THEN
+    ALTER TABLE nature_stay.unit_private_details
+      ADD CONSTRAINT unit_private_details_unit_id_fkey
+      FOREIGN KEY (unit_id) REFERENCES nature_stay.units(id) ON DELETE CASCADE;
+  END IF;
 END $$;
 
 -- ============================================================================
 -- 4. RLS on units
 -- ============================================================================
 ALTER TABLE nature_stay.units ENABLE ROW LEVEL SECURITY;
-
--- SELECT: anon sees only public units
-DROP POLICY IF EXISTS "units_select_anon" ON nature_stay.units;
-CREATE POLICY "units_select_anon"
-ON nature_stay.units FOR SELECT
-TO anon
-USING (
-  status = 'active'
-  AND is_published = true
-  AND archived_at IS NULL
-  AND EXISTS (
-    SELECT 1 FROM nature_stay.properties p
-    WHERE p.id = units.property_id
-      AND p.status = 'active'
-      AND p.is_published = true
-      AND p.archived_at IS NULL
-      AND p.verification_status = 'verified'
-      AND EXISTS (
-        SELECT 1 FROM nature_stay.host_profiles hp
-        WHERE hp.id = p.host_id
-          AND hp.is_active = true
-          AND hp.onboarding_status = 'active'
-          AND hp.archived_at IS NULL
-      )
-  )
-);
 
 -- SELECT: authenticated owner
 DROP POLICY IF EXISTS "units_select_owner" ON nature_stay.units;
@@ -191,10 +181,10 @@ ON nature_stay.units FOR SELECT
 TO authenticated
 USING (
   EXISTS (
-    SELECT 1 FROM nature_stay.properties p
-    JOIN nature_stay.host_profiles hp ON hp.id = p.host_id
-    WHERE p.id = units.property_id
-      AND hp.user_id = auth.uid()
+    SELECT 1 FROM nature_stay.host_accounts ha
+    JOIN nature_stay.properties p ON p.host_id = ha.host_id
+    WHERE ha.user_id = auth.uid()
+      AND p.id = units.property_id
   )
 );
 
@@ -214,11 +204,11 @@ WITH CHECK (
   public.has_role('host', 'naturestayred')
   AND property_id IN (
     SELECT p.id FROM nature_stay.properties p
-    JOIN nature_stay.host_profiles hp ON hp.id = p.host_id
-    WHERE hp.user_id = auth.uid()
-      AND hp.is_active = true
-      AND hp.onboarding_status = 'active'
-      AND hp.archived_at IS NULL
+    JOIN nature_stay.host_accounts ha ON ha.host_id = p.host_id
+    WHERE ha.user_id = auth.uid()
+      AND ha.is_active = true
+      AND ha.onboarding_status = 'active'
+      AND ha.archived_at IS NULL
   )
 );
 
@@ -229,124 +219,244 @@ ON nature_stay.units FOR UPDATE
 TO authenticated
 USING (
   EXISTS (
-    SELECT 1 FROM nature_stay.properties p
-    JOIN nature_stay.host_profiles hp ON hp.id = p.host_id
-    WHERE p.id = units.property_id
-      AND hp.user_id = auth.uid()
+    SELECT 1 FROM nature_stay.host_accounts ha
+    JOIN nature_stay.properties p ON p.host_id = ha.host_id
+    WHERE ha.user_id = auth.uid()
+      AND p.id = units.property_id
   )
 )
 WITH CHECK (
   EXISTS (
-    SELECT 1 FROM nature_stay.properties p
-    JOIN nature_stay.host_profiles hp ON hp.id = p.host_id
-    WHERE p.id = units.property_id
-      AND hp.user_id = auth.uid()
+    SELECT 1 FROM nature_stay.host_accounts ha
+    JOIN nature_stay.properties p ON p.host_id = ha.host_id
+    WHERE ha.user_id = auth.uid()
+      AND p.id = units.property_id
   )
 );
 
+-- No SELECT policy for anon — marketplace reads use units_public view.
+-- No DELETE policy for authenticated.
+
 -- ============================================================================
--- 5. Column-level grants on units
+-- 5. RLS on unit_private_details
+-- ============================================================================
+ALTER TABLE nature_stay.unit_private_details ENABLE ROW LEVEL SECURITY;
+
+-- SELECT: authenticated owner
+DROP POLICY IF EXISTS "unit_private_details_select_owner" ON nature_stay.unit_private_details;
+CREATE POLICY "unit_private_details_select_owner"
+ON nature_stay.unit_private_details FOR SELECT
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM nature_stay.host_accounts ha
+    JOIN nature_stay.properties p ON p.host_id = ha.host_id
+    JOIN nature_stay.units u ON u.property_id = p.id
+    WHERE ha.user_id = auth.uid()
+      AND u.id = unit_private_details.unit_id
+  )
+);
+
+-- SELECT: super_admin
+DROP POLICY IF EXISTS "unit_private_details_select_super_admin" ON nature_stay.unit_private_details;
+CREATE POLICY "unit_private_details_select_super_admin"
+ON nature_stay.unit_private_details FOR SELECT
+TO authenticated
+USING (public.has_role('super_admin', 'global'));
+
+-- INSERT: owner
+DROP POLICY IF EXISTS "unit_private_details_insert_owner" ON nature_stay.unit_private_details;
+CREATE POLICY "unit_private_details_insert_owner"
+ON nature_stay.unit_private_details FOR INSERT
+TO authenticated
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM nature_stay.host_accounts ha
+    JOIN nature_stay.properties p ON p.host_id = ha.host_id
+    JOIN nature_stay.units u ON u.property_id = p.id
+    WHERE ha.user_id = auth.uid()
+      AND u.id = unit_private_details.unit_id
+  )
+);
+
+-- UPDATE: owner
+DROP POLICY IF EXISTS "unit_private_details_update_owner" ON nature_stay.unit_private_details;
+CREATE POLICY "unit_private_details_update_owner"
+ON nature_stay.unit_private_details FOR UPDATE
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM nature_stay.host_accounts ha
+    JOIN nature_stay.properties p ON p.host_id = ha.host_id
+    JOIN nature_stay.units u ON u.property_id = p.id
+    WHERE ha.user_id = auth.uid()
+      AND u.id = unit_private_details.unit_id
+  )
+)
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM nature_stay.host_accounts ha
+    JOIN nature_stay.properties p ON p.host_id = ha.host_id
+    JOIN nature_stay.units u ON u.property_id = p.id
+    WHERE ha.user_id = auth.uid()
+      AND u.id = unit_private_details.unit_id
+  )
+);
+
+-- No DELETE policy for authenticated.
+
+-- ============================================================================
+-- 6. Grants on units
 -- ============================================================================
 
--- anon: SELECT only public columns + filter columns needed by the view WHERE
-GRANT SELECT (
-  id, property_id, unit_type_id, name, slug, description, quantity,
-  max_guests, base_guests, max_adults, max_children, max_infants,
-  bedrooms, beds, bathrooms, area_m2, pricing_mode, base_price,
-  extra_guest_price, currency, minimum_nights, maximum_nights,
-  pets_allowed, pet_fee, max_pets, check_in_time_override,
-  check_out_time_override, created_at, updated_at,
-  status, is_published, archived_at
-) ON nature_stay.units TO anon;
-
--- authenticated: SELECT all
+-- anon: NO grants on base table. Marketplace reads use units_public view.
+-- authenticated: SELECT + INSERT (allowed columns) + UPDATE (allowed columns)
 GRANT SELECT ON nature_stay.units TO authenticated;
 
--- authenticated: INSERT only allowed columns
 GRANT INSERT (
   property_id, unit_type_id, name, slug, description, quantity,
   max_guests, base_guests, max_adults, max_children, max_infants,
   bedrooms, beds, bathrooms, area_m2, pricing_mode, base_price,
   extra_guest_price, currency, minimum_nights, maximum_nights,
   pets_allowed, pet_fee, max_pets, check_in_time_override,
-  check_out_time_override, metadata
+  check_out_time_override
 ) ON nature_stay.units TO authenticated;
 
--- authenticated: UPDATE only allowed columns
--- status, archived_at NOT here — admin-controlled
 GRANT UPDATE (
   unit_type_id, name, slug, description, quantity, max_guests,
   base_guests, max_adults, max_children, max_infants, bedrooms, beds,
   bathrooms, area_m2, pricing_mode, base_price, extra_guest_price,
   currency, minimum_nights, maximum_nights, pets_allowed, pet_fee,
-  max_pets, check_in_time_override, check_out_time_override,
-  is_published, metadata
+  max_pets, check_in_time_override, check_out_time_override, is_published
 ) ON nature_stay.units TO authenticated;
 
 -- service_role: full CRUD
 GRANT SELECT, INSERT, UPDATE, DELETE ON nature_stay.units TO service_role;
 
 -- ============================================================================
--- 6. View: nature_stay.units_public (security_invoker)
+-- 7. Grants on unit_private_details
 -- ============================================================================
--- Does NOT expose: status, is_published, archived_at, metadata
+
+-- anon: NO grants.
+-- authenticated: SELECT, INSERT, UPDATE (no DELETE)
+GRANT SELECT, INSERT, UPDATE ON nature_stay.unit_private_details TO authenticated;
+
+-- service_role: full CRUD
+GRANT SELECT, INSERT, UPDATE, DELETE ON nature_stay.unit_private_details TO service_role;
+
+-- ============================================================================
+-- 8. View: nature_stay.units_public (security_barrier)
+-- ============================================================================
+-- Public marketplace view for units.
+-- security_barrier = true: view executes as postgres (bypasses RLS).
+-- Deliberate trust boundary: explicit column list, strict WHERE, security_barrier.
 
 CREATE OR REPLACE VIEW nature_stay.units_public
-WITH (security_invoker = true) AS
+WITH (security_barrier = true) AS
 SELECT
-  id,
-  property_id,
-  unit_type_id,
-  name,
-  slug,
-  description,
-  quantity,
-  max_guests,
-  base_guests,
-  max_adults,
-  max_children,
-  max_infants,
-  bedrooms,
-  beds,
-  bathrooms,
-  area_m2,
-  pricing_mode,
-  base_price,
-  extra_guest_price,
-  currency,
-  minimum_nights,
-  maximum_nights,
-  pets_allowed,
-  pet_fee,
-  max_pets,
-  check_in_time_override,
-  check_out_time_override,
-  created_at,
-  updated_at
-FROM nature_stay.units
-WHERE status = 'active'
-  AND is_published = true
-  AND archived_at IS NULL
+  u.id,
+  u.property_id,
+  u.unit_type_id,
+  u.name,
+  u.slug,
+  u.description,
+  u.quantity,
+  u.max_guests,
+  u.base_guests,
+  u.max_adults,
+  u.max_children,
+  u.max_infants,
+  u.bedrooms,
+  u.beds,
+  u.bathrooms,
+  u.area_m2,
+  u.pricing_mode,
+  u.base_price,
+  u.extra_guest_price,
+  u.currency,
+  u.minimum_nights,
+  u.maximum_nights,
+  u.pets_allowed,
+  u.pet_fee,
+  u.max_pets,
+  u.check_in_time_override,
+  u.check_out_time_override,
+  u.created_at,
+  u.updated_at
+FROM nature_stay.units u
+WHERE u.status = 'active'
+  AND u.is_published = true
+  AND u.archived_at IS NULL
   AND EXISTS (
     SELECT 1 FROM nature_stay.properties p
-    WHERE p.id = units.property_id
+    JOIN nature_stay.host_accounts ha ON ha.host_id = p.host_id
+    WHERE p.id = u.property_id
       AND p.status = 'active'
       AND p.is_published = true
-      AND p.archived_at IS NULL
       AND p.verification_status = 'verified'
-      AND EXISTS (
-        SELECT 1 FROM nature_stay.host_profiles hp
-        WHERE hp.id = p.host_id
-          AND hp.is_active = true
-          AND hp.onboarding_status = 'active'
-          AND hp.archived_at IS NULL
-      )
+      AND p.archived_at IS NULL
+      AND ha.is_active = true
+      AND ha.onboarding_status = 'active'
+      AND ha.archived_at IS NULL
   );
 
+REVOKE ALL ON nature_stay.units_public FROM PUBLIC;
 GRANT SELECT ON nature_stay.units_public TO anon, authenticated;
 
 -- ============================================================================
--- 7. Function: nature_stay.validate_unit_publication()
+-- 9. View: nature_stay.unit_owner_view (security_invoker)
+-- ============================================================================
+
+CREATE OR REPLACE VIEW nature_stay.unit_owner_view
+WITH (security_invoker = true) AS
+SELECT
+  u.id,
+  u.property_id,
+  u.unit_type_id,
+  u.name,
+  u.slug,
+  u.description,
+  u.quantity,
+  u.max_guests,
+  u.base_guests,
+  u.max_adults,
+  u.max_children,
+  u.max_infants,
+  u.bedrooms,
+  u.beds,
+  u.bathrooms,
+  u.area_m2,
+  u.pricing_mode,
+  u.base_price,
+  u.extra_guest_price,
+  u.currency,
+  u.minimum_nights,
+  u.maximum_nights,
+  u.pets_allowed,
+  u.pet_fee,
+  u.max_pets,
+  u.check_in_time_override,
+  u.check_out_time_override,
+  u.status,
+  u.is_published,
+  u.created_at,
+  u.updated_at,
+  u.archived_at,
+  upd.metadata AS private_metadata
+FROM nature_stay.units u
+LEFT JOIN nature_stay.unit_private_details upd ON upd.unit_id = u.id
+WHERE EXISTS (
+  SELECT 1 FROM nature_stay.host_accounts ha
+  JOIN nature_stay.properties p ON p.host_id = ha.host_id
+  WHERE ha.user_id = auth.uid()
+    AND p.id = u.property_id
+);
+
+REVOKE ALL ON nature_stay.unit_owner_view FROM PUBLIC;
+GRANT SELECT ON nature_stay.unit_owner_view TO authenticated;
+
+-- ============================================================================
+-- 10. Function: nature_stay.validate_unit_publication()
 -- Purpose: BEFORE INSERT OR UPDATE OF is_published trigger
 --          Validates unit + parent property + parent host conditions.
 -- Security: SECURITY INVOKER, search_path = nature_stay, pg_temp
@@ -379,14 +489,14 @@ BEGIN
       RAISE EXCEPTION 'Cannot publish unit %: parent property is not active, published, and verified.', NEW.id;
     END IF;
 
-    -- Parent host must be operational
+    -- Parent host must be operational (via host_accounts)
     IF NOT EXISTS (
       SELECT 1 FROM nature_stay.properties p
-      JOIN nature_stay.host_profiles hp ON hp.id = p.host_id
+      JOIN nature_stay.host_accounts ha ON ha.host_id = p.host_id
       WHERE p.id = NEW.property_id
-        AND hp.is_active = true
-        AND hp.onboarding_status = 'active'
-        AND hp.archived_at IS NULL
+        AND ha.is_active = true
+        AND ha.onboarding_status = 'active'
+        AND ha.archived_at IS NULL
     ) THEN
       RAISE EXCEPTION 'Cannot publish unit %: parent host is not active.', NEW.id;
     END IF;
@@ -400,7 +510,7 @@ REVOKE EXECUTE ON FUNCTION nature_stay.validate_unit_publication() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION nature_stay.validate_unit_publication() TO authenticated, service_role;
 
 -- ============================================================================
--- 8. Triggers on units
+-- 11. Triggers on units
 -- ============================================================================
 
 -- updated_at
@@ -416,3 +526,13 @@ CREATE TRIGGER trg_units_validate_publication
   BEFORE INSERT OR UPDATE OF is_published ON nature_stay.units
   FOR EACH ROW
   EXECUTE FUNCTION nature_stay.validate_unit_publication();
+
+-- ============================================================================
+-- 12. Trigger on unit_private_details
+-- ============================================================================
+
+DROP TRIGGER IF EXISTS trg_unit_private_details_updated_at ON nature_stay.unit_private_details;
+CREATE TRIGGER trg_unit_private_details_updated_at
+  BEFORE INSERT OR UPDATE ON nature_stay.unit_private_details
+  FOR EACH ROW
+  EXECUTE FUNCTION nature_stay.update_updated_at();

@@ -1,24 +1,30 @@
 -- ============================================================================
--- Migration: C7 — nature_stay image metadata
+-- Migration: C7 — nature_stay image metadata + public views
 -- Purpose: Create property_images and unit_images metadata tables
+--          with public security_barrier views for marketplace reads
 -- Schema: nature_stay
--- Backwards-compatible: YES (new tables)
+-- Backwards-compatible: YES (new tables + new views)
 -- ToursRed impact: NONE
 -- ============================================================================
 --
 -- Objects created:
 --   - Table: nature_stay.property_images
 --   - Table: nature_stay.unit_images
+--   - View:  nature_stay.property_images_public (security_barrier)
+--   - View:  nature_stay.unit_images_public (security_barrier)
 --
 -- Dependencies:
 --   C4 (properties for FK)
 --   C5 (units for FK)
+--   C3 (host_accounts for ownership path)
 --
--- RLS:
---   anon: SELECT only if parent is publicly visible
---   authenticated owner: SELECT, INSERT, UPDATE, DELETE own images
---   super_admin: SELECT all
---   service_role: bypasses RLS
+-- ARCHITECTURE:
+--   Base tables: owner/admin only via RLS. NO anon access.
+--   Marketplace reads: *_public security_barrier views.
+--   Ownership path: auth.uid() → host_accounts → properties/units → images
+--
+-- Column names preserved from original: sort_order, is_cover, alt_text,
+-- caption, width, height, file_size, mime_type.
 --
 -- Constraints:
 --   UNIQUE(storage_path)
@@ -101,6 +107,7 @@ CREATE INDEX IF NOT EXISTS idx_unit_images_unit_sort
 -- ============================================================================
 -- 3. Foreign keys
 -- ============================================================================
+
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -131,29 +138,6 @@ END $$;
 -- ============================================================================
 ALTER TABLE nature_stay.property_images ENABLE ROW LEVEL SECURITY;
 
--- SELECT: anon via parent property publicly visible
-DROP POLICY IF EXISTS "property_images_select_anon" ON nature_stay.property_images;
-CREATE POLICY "property_images_select_anon"
-ON nature_stay.property_images FOR SELECT
-TO anon
-USING (
-  EXISTS (
-    SELECT 1 FROM nature_stay.properties p
-    WHERE p.id = property_images.property_id
-      AND p.status = 'active'
-      AND p.is_published = true
-      AND p.archived_at IS NULL
-      AND p.verification_status = 'verified'
-      AND EXISTS (
-        SELECT 1 FROM nature_stay.host_profiles hp
-        WHERE hp.id = p.host_id
-          AND hp.is_active = true
-          AND hp.onboarding_status = 'active'
-          AND hp.archived_at IS NULL
-      )
-  )
-);
-
 -- SELECT: authenticated owner
 DROP POLICY IF EXISTS "property_images_select_owner" ON nature_stay.property_images;
 CREATE POLICY "property_images_select_owner"
@@ -161,10 +145,10 @@ ON nature_stay.property_images FOR SELECT
 TO authenticated
 USING (
   EXISTS (
-    SELECT 1 FROM nature_stay.properties p
-    JOIN nature_stay.host_profiles hp ON hp.id = p.host_id
-    WHERE p.id = property_images.property_id
-      AND hp.user_id = auth.uid()
+    SELECT 1 FROM nature_stay.host_accounts ha
+    JOIN nature_stay.properties p ON p.host_id = ha.host_id
+    WHERE ha.user_id = auth.uid()
+      AND p.id = property_images.property_id
   )
 );
 
@@ -182,10 +166,10 @@ ON nature_stay.property_images FOR INSERT
 TO authenticated
 WITH CHECK (
   EXISTS (
-    SELECT 1 FROM nature_stay.properties p
-    JOIN nature_stay.host_profiles hp ON hp.id = p.host_id
-    WHERE p.id = property_images.property_id
-      AND hp.user_id = auth.uid()
+    SELECT 1 FROM nature_stay.host_accounts ha
+    JOIN nature_stay.properties p ON p.host_id = ha.host_id
+    WHERE ha.user_id = auth.uid()
+      AND p.id = property_images.property_id
   )
 );
 
@@ -196,18 +180,18 @@ ON nature_stay.property_images FOR UPDATE
 TO authenticated
 USING (
   EXISTS (
-    SELECT 1 FROM nature_stay.properties p
-    JOIN nature_stay.host_profiles hp ON hp.id = p.host_id
-    WHERE p.id = property_images.property_id
-      AND hp.user_id = auth.uid()
+    SELECT 1 FROM nature_stay.host_accounts ha
+    JOIN nature_stay.properties p ON p.host_id = ha.host_id
+    WHERE ha.user_id = auth.uid()
+      AND p.id = property_images.property_id
   )
 )
 WITH CHECK (
   EXISTS (
-    SELECT 1 FROM nature_stay.properties p
-    JOIN nature_stay.host_profiles hp ON hp.id = p.host_id
-    WHERE p.id = property_images.property_id
-      AND hp.user_id = auth.uid()
+    SELECT 1 FROM nature_stay.host_accounts ha
+    JOIN nature_stay.properties p ON p.host_id = ha.host_id
+    WHERE ha.user_id = auth.uid()
+      AND p.id = property_images.property_id
   )
 );
 
@@ -218,44 +202,19 @@ ON nature_stay.property_images FOR DELETE
 TO authenticated
 USING (
   EXISTS (
-    SELECT 1 FROM nature_stay.properties p
-    JOIN nature_stay.host_profiles hp ON hp.id = p.host_id
-    WHERE p.id = property_images.property_id
-      AND hp.user_id = auth.uid()
+    SELECT 1 FROM nature_stay.host_accounts ha
+    JOIN nature_stay.properties p ON p.host_id = ha.host_id
+    WHERE ha.user_id = auth.uid()
+      AND p.id = property_images.property_id
   )
 );
+
+-- No SELECT policy for anon — marketplace reads use property_images_public view.
 
 -- ============================================================================
 -- 5. RLS on unit_images
 -- ============================================================================
 ALTER TABLE nature_stay.unit_images ENABLE ROW LEVEL SECURITY;
-
--- SELECT: anon via parent unit/property publicly visible
-DROP POLICY IF EXISTS "unit_images_select_anon" ON nature_stay.unit_images;
-CREATE POLICY "unit_images_select_anon"
-ON nature_stay.unit_images FOR SELECT
-TO anon
-USING (
-  EXISTS (
-    SELECT 1 FROM nature_stay.units u
-    JOIN nature_stay.properties p ON p.id = u.property_id
-    WHERE u.id = unit_images.unit_id
-      AND u.status = 'active'
-      AND u.is_published = true
-      AND u.archived_at IS NULL
-      AND p.status = 'active'
-      AND p.is_published = true
-      AND p.archived_at IS NULL
-      AND p.verification_status = 'verified'
-      AND EXISTS (
-        SELECT 1 FROM nature_stay.host_profiles hp
-        WHERE hp.id = p.host_id
-          AND hp.is_active = true
-          AND hp.onboarding_status = 'active'
-          AND hp.archived_at IS NULL
-      )
-  )
-);
 
 -- SELECT: authenticated owner
 DROP POLICY IF EXISTS "unit_images_select_owner" ON nature_stay.unit_images;
@@ -264,11 +223,11 @@ ON nature_stay.unit_images FOR SELECT
 TO authenticated
 USING (
   EXISTS (
-    SELECT 1 FROM nature_stay.units u
-    JOIN nature_stay.properties p ON p.id = u.property_id
-    JOIN nature_stay.host_profiles hp ON hp.id = p.host_id
-    WHERE u.id = unit_images.unit_id
-      AND hp.user_id = auth.uid()
+    SELECT 1 FROM nature_stay.host_accounts ha
+    JOIN nature_stay.properties p ON p.host_id = ha.host_id
+    JOIN nature_stay.units u ON u.property_id = p.id
+    WHERE ha.user_id = auth.uid()
+      AND u.id = unit_images.unit_id
   )
 );
 
@@ -286,11 +245,11 @@ ON nature_stay.unit_images FOR INSERT
 TO authenticated
 WITH CHECK (
   EXISTS (
-    SELECT 1 FROM nature_stay.units u
-    JOIN nature_stay.properties p ON p.id = u.property_id
-    JOIN nature_stay.host_profiles hp ON hp.id = p.host_id
-    WHERE u.id = unit_images.unit_id
-      AND hp.user_id = auth.uid()
+    SELECT 1 FROM nature_stay.host_accounts ha
+    JOIN nature_stay.properties p ON p.host_id = ha.host_id
+    JOIN nature_stay.units u ON u.property_id = p.id
+    WHERE ha.user_id = auth.uid()
+      AND u.id = unit_images.unit_id
   )
 );
 
@@ -301,20 +260,20 @@ ON nature_stay.unit_images FOR UPDATE
 TO authenticated
 USING (
   EXISTS (
-    SELECT 1 FROM nature_stay.units u
-    JOIN nature_stay.properties p ON p.id = u.property_id
-    JOIN nature_stay.host_profiles hp ON hp.id = p.host_id
-    WHERE u.id = unit_images.unit_id
-      AND hp.user_id = auth.uid()
+    SELECT 1 FROM nature_stay.host_accounts ha
+    JOIN nature_stay.properties p ON p.host_id = ha.host_id
+    JOIN nature_stay.units u ON u.property_id = p.id
+    WHERE ha.user_id = auth.uid()
+      AND u.id = unit_images.unit_id
   )
 )
 WITH CHECK (
   EXISTS (
-    SELECT 1 FROM nature_stay.units u
-    JOIN nature_stay.properties p ON p.id = u.property_id
-    JOIN nature_stay.host_profiles hp ON hp.id = p.host_id
-    WHERE u.id = unit_images.unit_id
-      AND hp.user_id = auth.uid()
+    SELECT 1 FROM nature_stay.host_accounts ha
+    JOIN nature_stay.properties p ON p.host_id = ha.host_id
+    JOIN nature_stay.units u ON u.property_id = p.id
+    WHERE ha.user_id = auth.uid()
+      AND u.id = unit_images.unit_id
   )
 );
 
@@ -325,22 +284,101 @@ ON nature_stay.unit_images FOR DELETE
 TO authenticated
 USING (
   EXISTS (
-    SELECT 1 FROM nature_stay.units u
-    JOIN nature_stay.properties p ON p.id = u.property_id
-    JOIN nature_stay.host_profiles hp ON hp.id = p.host_id
-    WHERE u.id = unit_images.unit_id
-      AND hp.user_id = auth.uid()
+    SELECT 1 FROM nature_stay.host_accounts ha
+    JOIN nature_stay.properties p ON p.host_id = ha.host_id
+    JOIN nature_stay.units u ON u.property_id = p.id
+    WHERE ha.user_id = auth.uid()
+      AND u.id = unit_images.unit_id
   )
 );
+
+-- No SELECT policy for anon — marketplace reads use unit_images_public view.
 
 -- ============================================================================
 -- 6. Grants on image tables
 -- ============================================================================
-GRANT SELECT ON nature_stay.property_images TO anon, authenticated;
-GRANT SELECT ON nature_stay.unit_images TO anon, authenticated;
 
+-- anon: NO grants on base tables.
+-- authenticated: SELECT, INSERT, UPDATE, DELETE
 GRANT SELECT, INSERT, UPDATE, DELETE ON nature_stay.property_images TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON nature_stay.unit_images TO authenticated;
 
+-- service_role: full CRUD
 GRANT SELECT, INSERT, UPDATE, DELETE ON nature_stay.property_images TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON nature_stay.unit_images TO service_role;
+
+-- ============================================================================
+-- 7. View: nature_stay.property_images_public (security_barrier)
+-- ============================================================================
+
+CREATE OR REPLACE VIEW nature_stay.property_images_public
+WITH (security_barrier = true) AS
+SELECT
+  pi.id,
+  pi.property_id,
+  pi.storage_path,
+  pi.alt_text,
+  pi.caption,
+  pi.sort_order,
+  pi.is_cover,
+  pi.width,
+  pi.height,
+  pi.file_size,
+  pi.mime_type,
+  pi.created_at
+FROM nature_stay.property_images pi
+WHERE EXISTS (
+  SELECT 1 FROM nature_stay.properties p
+  JOIN nature_stay.host_accounts ha ON ha.host_id = p.host_id
+  WHERE p.id = pi.property_id
+    AND p.status = 'active'
+    AND p.is_published = true
+    AND p.verification_status = 'verified'
+    AND p.archived_at IS NULL
+    AND ha.is_active = true
+    AND ha.onboarding_status = 'active'
+    AND ha.archived_at IS NULL
+);
+
+REVOKE ALL ON nature_stay.property_images_public FROM PUBLIC;
+GRANT SELECT ON nature_stay.property_images_public TO anon, authenticated;
+
+-- ============================================================================
+-- 8. View: nature_stay.unit_images_public (security_barrier)
+-- ============================================================================
+
+CREATE OR REPLACE VIEW nature_stay.unit_images_public
+WITH (security_barrier = true) AS
+SELECT
+  ui.id,
+  ui.unit_id,
+  ui.storage_path,
+  ui.alt_text,
+  ui.caption,
+  ui.sort_order,
+  ui.is_cover,
+  ui.width,
+  ui.height,
+  ui.file_size,
+  ui.mime_type,
+  ui.created_at
+FROM nature_stay.unit_images ui
+WHERE EXISTS (
+  SELECT 1 FROM nature_stay.units u
+  JOIN nature_stay.properties p ON p.id = u.property_id
+  JOIN nature_stay.host_accounts ha ON ha.host_id = p.host_id
+  WHERE u.id = ui.unit_id
+    AND u.status = 'active'
+    AND u.is_published = true
+    AND u.archived_at IS NULL
+    AND p.status = 'active'
+    AND p.is_published = true
+    AND p.verification_status = 'verified'
+    AND p.archived_at IS NULL
+    AND ha.is_active = true
+    AND ha.onboarding_status = 'active'
+    AND ha.archived_at IS NULL
+);
+
+REVOKE ALL ON nature_stay.unit_images_public FROM PUBLIC;
+GRANT SELECT ON nature_stay.unit_images_public TO anon, authenticated;

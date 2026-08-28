@@ -13,9 +13,13 @@
 --
 -- RLS:
 --   anon: SELECT active=true rows only
---   authenticated: SELECT all rows
+--   authenticated: SELECT active=true rows only (same marketplace view as anon)
 --   service_role: full CRUD (bypasses RLS)
 --   No INSERT/UPDATE/DELETE for anon or authenticated.
+--
+-- Change from previous version:
+--   authenticated policy changed from USING(true) to USING(active = true)
+--   so inactive catalog entries are not exposed to client.
 --
 -- 0 functions. 0 triggers. 0 SECURITY DEFINER.
 -- ============================================================================
@@ -121,7 +125,7 @@ TO anon USING (active = true);
 DROP POLICY IF EXISTS "property_types_select_authenticated" ON nature_stay.property_types;
 CREATE POLICY "property_types_select_authenticated"
 ON nature_stay.property_types FOR SELECT
-TO authenticated USING (true);
+TO authenticated USING (active = true);
 
 -- unit_types policies
 DROP POLICY IF EXISTS "unit_types_select_anon" ON nature_stay.unit_types;
@@ -132,7 +136,7 @@ TO anon USING (active = true);
 DROP POLICY IF EXISTS "unit_types_select_authenticated" ON nature_stay.unit_types;
 CREATE POLICY "unit_types_select_authenticated"
 ON nature_stay.unit_types FOR SELECT
-TO authenticated USING (true);
+TO authenticated USING (active = true);
 
 -- amenities policies
 DROP POLICY IF EXISTS "amenities_select_anon" ON nature_stay.amenities;
@@ -143,7 +147,7 @@ TO anon USING (active = true);
 DROP POLICY IF EXISTS "amenities_select_authenticated" ON nature_stay.amenities;
 CREATE POLICY "amenities_select_authenticated"
 ON nature_stay.amenities FOR SELECT
-TO authenticated USING (true);
+TO authenticated USING (active = true);
 
 -- ============================================================================
 -- 5. Grants on catalog tables

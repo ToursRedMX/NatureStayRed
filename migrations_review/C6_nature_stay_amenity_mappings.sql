@@ -1,25 +1,28 @@
 -- ============================================================================
--- Migration: C6 — nature_stay amenity mappings
+-- Migration: C6 — nature_stay amenity mappings + public views
 -- Purpose: Create property_amenities and unit_amenities mapping tables
+--          with public security_barrier views for marketplace reads
 -- Schema: nature_stay
--- Backwards-compatible: YES (new tables)
+-- Backwards-compatible: YES (new tables + new views)
 -- ToursRed impact: NONE
 -- ============================================================================
 --
 -- Objects created:
 --   - Table: nature_stay.property_amenities
 --   - Table: nature_stay.unit_amenities
+--   - View:  nature_stay.property_amenities_public (security_barrier)
+--   - View:  nature_stay.unit_amenities_public (security_barrier)
 --
 -- Dependencies:
 --   C4 (properties for FK)
 --   C5 (units for FK)
 --   C2a (amenities for FK)
+--   C3 (host_accounts for ownership path)
 --
--- RLS:
---   anon: SELECT only if parent is publicly visible
---   authenticated owner: SELECT, INSERT, DELETE own mappings
---   super_admin: SELECT all
---   service_role: bypasses RLS
+-- ARCHITECTURE:
+--   Base tables: owner/admin only via RLS. NO anon access.
+--   Marketplace reads: *_public security_barrier views.
+--   Ownership path: auth.uid() → host_accounts → properties → amenities
 --
 -- 0 functions. 0 triggers. 0 SECURITY DEFINER.
 -- ============================================================================
@@ -65,6 +68,7 @@ CREATE INDEX IF NOT EXISTS idx_unit_amenities_amenity_id
 -- ============================================================================
 -- 3. Foreign keys
 -- ============================================================================
+
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -117,29 +121,6 @@ END $$;
 -- ============================================================================
 ALTER TABLE nature_stay.property_amenities ENABLE ROW LEVEL SECURITY;
 
--- SELECT: anon via parent property publicly visible
-DROP POLICY IF EXISTS "property_amenities_select_anon" ON nature_stay.property_amenities;
-CREATE POLICY "property_amenities_select_anon"
-ON nature_stay.property_amenities FOR SELECT
-TO anon
-USING (
-  EXISTS (
-    SELECT 1 FROM nature_stay.properties p
-    WHERE p.id = property_amenities.property_id
-      AND p.status = 'active'
-      AND p.is_published = true
-      AND p.archived_at IS NULL
-      AND p.verification_status = 'verified'
-      AND EXISTS (
-        SELECT 1 FROM nature_stay.host_profiles hp
-        WHERE hp.id = p.host_id
-          AND hp.is_active = true
-          AND hp.onboarding_status = 'active'
-          AND hp.archived_at IS NULL
-      )
-  )
-);
-
 -- SELECT: authenticated owner
 DROP POLICY IF EXISTS "property_amenities_select_owner" ON nature_stay.property_amenities;
 CREATE POLICY "property_amenities_select_owner"
@@ -147,10 +128,10 @@ ON nature_stay.property_amenities FOR SELECT
 TO authenticated
 USING (
   EXISTS (
-    SELECT 1 FROM nature_stay.properties p
-    JOIN nature_stay.host_profiles hp ON hp.id = p.host_id
-    WHERE p.id = property_amenities.property_id
-      AND hp.user_id = auth.uid()
+    SELECT 1 FROM nature_stay.host_accounts ha
+    JOIN nature_stay.properties p ON p.host_id = ha.host_id
+    WHERE ha.user_id = auth.uid()
+      AND p.id = property_amenities.property_id
   )
 );
 
@@ -168,10 +149,10 @@ ON nature_stay.property_amenities FOR INSERT
 TO authenticated
 WITH CHECK (
   EXISTS (
-    SELECT 1 FROM nature_stay.properties p
-    JOIN nature_stay.host_profiles hp ON hp.id = p.host_id
-    WHERE p.id = property_amenities.property_id
-      AND hp.user_id = auth.uid()
+    SELECT 1 FROM nature_stay.host_accounts ha
+    JOIN nature_stay.properties p ON p.host_id = ha.host_id
+    WHERE ha.user_id = auth.uid()
+      AND p.id = property_amenities.property_id
   )
 );
 
@@ -182,44 +163,19 @@ ON nature_stay.property_amenities FOR DELETE
 TO authenticated
 USING (
   EXISTS (
-    SELECT 1 FROM nature_stay.properties p
-    JOIN nature_stay.host_profiles hp ON hp.id = p.host_id
-    WHERE p.id = property_amenities.property_id
-      AND hp.user_id = auth.uid()
+    SELECT 1 FROM nature_stay.host_accounts ha
+    JOIN nature_stay.properties p ON p.host_id = ha.host_id
+    WHERE ha.user_id = auth.uid()
+      AND p.id = property_amenities.property_id
   )
 );
+
+-- No SELECT policy for anon — marketplace reads use property_amenities_public view.
 
 -- ============================================================================
 -- 5. RLS on unit_amenities
 -- ============================================================================
 ALTER TABLE nature_stay.unit_amenities ENABLE ROW LEVEL SECURITY;
-
--- SELECT: anon via parent unit/property publicly visible
-DROP POLICY IF EXISTS "unit_amenities_select_anon" ON nature_stay.unit_amenities;
-CREATE POLICY "unit_amenities_select_anon"
-ON nature_stay.unit_amenities FOR SELECT
-TO anon
-USING (
-  EXISTS (
-    SELECT 1 FROM nature_stay.units u
-    JOIN nature_stay.properties p ON p.id = u.property_id
-    WHERE u.id = unit_amenities.unit_id
-      AND u.status = 'active'
-      AND u.is_published = true
-      AND u.archived_at IS NULL
-      AND p.status = 'active'
-      AND p.is_published = true
-      AND p.archived_at IS NULL
-      AND p.verification_status = 'verified'
-      AND EXISTS (
-        SELECT 1 FROM nature_stay.host_profiles hp
-        WHERE hp.id = p.host_id
-          AND hp.is_active = true
-          AND hp.onboarding_status = 'active'
-          AND hp.archived_at IS NULL
-      )
-  )
-);
 
 -- SELECT: authenticated owner
 DROP POLICY IF EXISTS "unit_amenities_select_owner" ON nature_stay.unit_amenities;
@@ -228,11 +184,11 @@ ON nature_stay.unit_amenities FOR SELECT
 TO authenticated
 USING (
   EXISTS (
-    SELECT 1 FROM nature_stay.units u
-    JOIN nature_stay.properties p ON p.id = u.property_id
-    JOIN nature_stay.host_profiles hp ON hp.id = p.host_id
-    WHERE u.id = unit_amenities.unit_id
-      AND hp.user_id = auth.uid()
+    SELECT 1 FROM nature_stay.host_accounts ha
+    JOIN nature_stay.properties p ON p.host_id = ha.host_id
+    JOIN nature_stay.units u ON u.property_id = p.id
+    WHERE ha.user_id = auth.uid()
+      AND u.id = unit_amenities.unit_id
   )
 );
 
@@ -250,11 +206,11 @@ ON nature_stay.unit_amenities FOR INSERT
 TO authenticated
 WITH CHECK (
   EXISTS (
-    SELECT 1 FROM nature_stay.units u
-    JOIN nature_stay.properties p ON p.id = u.property_id
-    JOIN nature_stay.host_profiles hp ON hp.id = p.host_id
-    WHERE u.id = unit_amenities.unit_id
-      AND hp.user_id = auth.uid()
+    SELECT 1 FROM nature_stay.host_accounts ha
+    JOIN nature_stay.properties p ON p.host_id = ha.host_id
+    JOIN nature_stay.units u ON u.property_id = p.id
+    WHERE ha.user_id = auth.uid()
+      AND u.id = unit_amenities.unit_id
   )
 );
 
@@ -265,22 +221,83 @@ ON nature_stay.unit_amenities FOR DELETE
 TO authenticated
 USING (
   EXISTS (
-    SELECT 1 FROM nature_stay.units u
-    JOIN nature_stay.properties p ON p.id = u.property_id
-    JOIN nature_stay.host_profiles hp ON hp.id = p.host_id
-    WHERE u.id = unit_amenities.unit_id
-      AND hp.user_id = auth.uid()
+    SELECT 1 FROM nature_stay.host_accounts ha
+    JOIN nature_stay.properties p ON p.host_id = ha.host_id
+    JOIN nature_stay.units u ON u.property_id = p.id
+    WHERE ha.user_id = auth.uid()
+      AND u.id = unit_amenities.unit_id
   )
 );
+
+-- No SELECT policy for anon — marketplace reads use unit_amenities_public view.
 
 -- ============================================================================
 -- 6. Grants on mapping tables
 -- ============================================================================
-GRANT SELECT ON nature_stay.property_amenities TO anon, authenticated;
-GRANT SELECT ON nature_stay.unit_amenities TO anon, authenticated;
 
+-- anon: NO grants on base tables.
+-- authenticated: SELECT, INSERT, DELETE
 GRANT SELECT, INSERT, DELETE ON nature_stay.property_amenities TO authenticated;
 GRANT SELECT, INSERT, DELETE ON nature_stay.unit_amenities TO authenticated;
 
+-- service_role: full CRUD
 GRANT SELECT, INSERT, UPDATE, DELETE ON nature_stay.property_amenities TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON nature_stay.unit_amenities TO service_role;
+
+-- ============================================================================
+-- 7. View: nature_stay.property_amenities_public (security_barrier)
+-- ============================================================================
+
+CREATE OR REPLACE VIEW nature_stay.property_amenities_public
+WITH (security_barrier = true) AS
+SELECT
+  pa.id,
+  pa.property_id,
+  pa.amenity_id
+FROM nature_stay.property_amenities pa
+WHERE EXISTS (
+  SELECT 1 FROM nature_stay.properties p
+  JOIN nature_stay.host_accounts ha ON ha.host_id = p.host_id
+  WHERE p.id = pa.property_id
+    AND p.status = 'active'
+    AND p.is_published = true
+    AND p.verification_status = 'verified'
+    AND p.archived_at IS NULL
+    AND ha.is_active = true
+    AND ha.onboarding_status = 'active'
+    AND ha.archived_at IS NULL
+);
+
+REVOKE ALL ON nature_stay.property_amenities_public FROM PUBLIC;
+GRANT SELECT ON nature_stay.property_amenities_public TO anon, authenticated;
+
+-- ============================================================================
+-- 8. View: nature_stay.unit_amenities_public (security_barrier)
+-- ============================================================================
+
+CREATE OR REPLACE VIEW nature_stay.unit_amenities_public
+WITH (security_barrier = true) AS
+SELECT
+  ua.id,
+  ua.unit_id,
+  ua.amenity_id
+FROM nature_stay.unit_amenities ua
+WHERE EXISTS (
+  SELECT 1 FROM nature_stay.units u
+  JOIN nature_stay.properties p ON p.id = u.property_id
+  JOIN nature_stay.host_accounts ha ON ha.host_id = p.host_id
+  WHERE u.id = ua.unit_id
+    AND u.status = 'active'
+    AND u.is_published = true
+    AND u.archived_at IS NULL
+    AND p.status = 'active'
+    AND p.is_published = true
+    AND p.verification_status = 'verified'
+    AND p.archived_at IS NULL
+    AND ha.is_active = true
+    AND ha.onboarding_status = 'active'
+    AND ha.archived_at IS NULL
+);
+
+REVOKE ALL ON nature_stay.unit_amenities_public FROM PUBLIC;
+GRANT SELECT ON nature_stay.unit_amenities_public TO anon, authenticated;

@@ -1,24 +1,29 @@
 -- ============================================================================
--- Migration: C8 — nature_stay property_tour_links (ToursRed cross-sell)
+-- Migration: C8 — nature_stay property_tour_links + public view (ToursRed cross-sell)
 -- Purpose: Create property_tour_links table linking Nature Stay properties
---          to ToursRed tours for cross-sell
+--          to ToursRed tours for cross-sell, with public security_barrier view
 -- Schema: nature_stay
--- Backwards-compatible: YES (new table)
+-- Backwards-compatible: YES (new table + new view)
 -- ToursRed impact: NONE (read-only FK to public.tours, no modifications)
 -- ============================================================================
 --
 -- Objects created:
 --   - Table: nature_stay.property_tour_links
+--   - View:  nature_stay.property_tour_links_public (security_barrier)
 --
 -- Dependencies:
 --   C4 (properties for FK)
+--   C3 (host_accounts for ownership path)
 --   public.tours (existing ToursRed table, read-only FK)
 --
--- RLS:
---   anon: SELECT only if parent property is publicly visible AND active=true
---   authenticated owner: SELECT, INSERT, UPDATE, DELETE own links
---   super_admin: SELECT all
---   service_role: bypasses RLS
+-- ARCHITECTURE:
+--   Base table: owner/admin only via RLS. NO anon access.
+--   Marketplace reads: property_tour_links_public security_barrier view.
+--   Ownership path: auth.uid() → host_accounts → properties → tour_links
+--
+-- Column names preserved from original: active, featured, display_order,
+-- discount_type, discount_value, valid_from, valid_until.
+-- NOTE: column is named "active" (NOT "is_active").
 --
 -- Constraints:
 --   UNIQUE(property_id, tour_id)
@@ -85,6 +90,7 @@ CREATE INDEX IF NOT EXISTS idx_property_tour_links_active_featured
 -- ============================================================================
 -- 2. Foreign keys
 -- ============================================================================
+
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -115,30 +121,6 @@ END $$;
 -- ============================================================================
 ALTER TABLE nature_stay.property_tour_links ENABLE ROW LEVEL SECURITY;
 
--- SELECT: anon via parent property publicly visible AND link active
-DROP POLICY IF EXISTS "property_tour_links_select_anon" ON nature_stay.property_tour_links;
-CREATE POLICY "property_tour_links_select_anon"
-ON nature_stay.property_tour_links FOR SELECT
-TO anon
-USING (
-  active = true
-  AND EXISTS (
-    SELECT 1 FROM nature_stay.properties p
-    WHERE p.id = property_tour_links.property_id
-      AND p.status = 'active'
-      AND p.is_published = true
-      AND p.archived_at IS NULL
-      AND p.verification_status = 'verified'
-      AND EXISTS (
-        SELECT 1 FROM nature_stay.host_profiles hp
-        WHERE hp.id = p.host_id
-          AND hp.is_active = true
-          AND hp.onboarding_status = 'active'
-          AND hp.archived_at IS NULL
-      )
-  )
-);
-
 -- SELECT: authenticated owner
 DROP POLICY IF EXISTS "property_tour_links_select_owner" ON nature_stay.property_tour_links;
 CREATE POLICY "property_tour_links_select_owner"
@@ -146,10 +128,10 @@ ON nature_stay.property_tour_links FOR SELECT
 TO authenticated
 USING (
   EXISTS (
-    SELECT 1 FROM nature_stay.properties p
-    JOIN nature_stay.host_profiles hp ON hp.id = p.host_id
-    WHERE p.id = property_tour_links.property_id
-      AND hp.user_id = auth.uid()
+    SELECT 1 FROM nature_stay.host_accounts ha
+    JOIN nature_stay.properties p ON p.host_id = ha.host_id
+    WHERE ha.user_id = auth.uid()
+      AND p.id = property_tour_links.property_id
   )
 );
 
@@ -167,10 +149,10 @@ ON nature_stay.property_tour_links FOR INSERT
 TO authenticated
 WITH CHECK (
   EXISTS (
-    SELECT 1 FROM nature_stay.properties p
-    JOIN nature_stay.host_profiles hp ON hp.id = p.host_id
-    WHERE p.id = property_tour_links.property_id
-      AND hp.user_id = auth.uid()
+    SELECT 1 FROM nature_stay.host_accounts ha
+    JOIN nature_stay.properties p ON p.host_id = ha.host_id
+    WHERE ha.user_id = auth.uid()
+      AND p.id = property_tour_links.property_id
   )
 );
 
@@ -181,18 +163,18 @@ ON nature_stay.property_tour_links FOR UPDATE
 TO authenticated
 USING (
   EXISTS (
-    SELECT 1 FROM nature_stay.properties p
-    JOIN nature_stay.host_profiles hp ON hp.id = p.host_id
-    WHERE p.id = property_tour_links.property_id
-      AND hp.user_id = auth.uid()
+    SELECT 1 FROM nature_stay.host_accounts ha
+    JOIN nature_stay.properties p ON p.host_id = ha.host_id
+    WHERE ha.user_id = auth.uid()
+      AND p.id = property_tour_links.property_id
   )
 )
 WITH CHECK (
   EXISTS (
-    SELECT 1 FROM nature_stay.properties p
-    JOIN nature_stay.host_profiles hp ON hp.id = p.host_id
-    WHERE p.id = property_tour_links.property_id
-      AND hp.user_id = auth.uid()
+    SELECT 1 FROM nature_stay.host_accounts ha
+    JOIN nature_stay.properties p ON p.host_id = ha.host_id
+    WHERE ha.user_id = auth.uid()
+      AND p.id = property_tour_links.property_id
   )
 );
 
@@ -203,18 +185,58 @@ ON nature_stay.property_tour_links FOR DELETE
 TO authenticated
 USING (
   EXISTS (
-    SELECT 1 FROM nature_stay.properties p
-    JOIN nature_stay.host_profiles hp ON hp.id = p.host_id
-    WHERE p.id = property_tour_links.property_id
-      AND hp.user_id = auth.uid()
+    SELECT 1 FROM nature_stay.host_accounts ha
+    JOIN nature_stay.properties p ON p.host_id = ha.host_id
+    WHERE ha.user_id = auth.uid()
+      AND p.id = property_tour_links.property_id
   )
 );
+
+-- No SELECT policy for anon — marketplace reads use property_tour_links_public view.
 
 -- ============================================================================
 -- 4. Grants on property_tour_links
 -- ============================================================================
-GRANT SELECT ON nature_stay.property_tour_links TO anon, authenticated;
 
+-- anon: NO grants on base table.
+-- authenticated: SELECT, INSERT, UPDATE, DELETE
 GRANT SELECT, INSERT, UPDATE, DELETE ON nature_stay.property_tour_links TO authenticated;
 
+-- service_role: full CRUD
 GRANT SELECT, INSERT, UPDATE, DELETE ON nature_stay.property_tour_links TO service_role;
+
+-- ============================================================================
+-- 5. View: nature_stay.property_tour_links_public (security_barrier)
+-- ============================================================================
+
+CREATE OR REPLACE VIEW nature_stay.property_tour_links_public
+WITH (security_barrier = true) AS
+SELECT
+  ptl.id,
+  ptl.property_id,
+  ptl.tour_id,
+  ptl.active,
+  ptl.featured,
+  ptl.display_order,
+  ptl.discount_type,
+  ptl.discount_value,
+  ptl.valid_from,
+  ptl.valid_until,
+  ptl.created_at
+FROM nature_stay.property_tour_links ptl
+WHERE ptl.active = true
+  AND EXISTS (
+    SELECT 1 FROM nature_stay.properties p
+    JOIN nature_stay.host_accounts ha ON ha.host_id = p.host_id
+    WHERE p.id = ptl.property_id
+      AND p.status = 'active'
+      AND p.is_published = true
+      AND p.verification_status = 'verified'
+      AND p.archived_at IS NULL
+      AND ha.is_active = true
+      AND ha.onboarding_status = 'active'
+      AND ha.archived_at IS NULL
+  );
+
+REVOKE ALL ON nature_stay.property_tour_links_public FROM PUBLIC;
+GRANT SELECT ON nature_stay.property_tour_links_public TO anon, authenticated;
