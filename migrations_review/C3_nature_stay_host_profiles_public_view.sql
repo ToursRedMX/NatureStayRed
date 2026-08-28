@@ -119,12 +119,7 @@ CREATE TABLE IF NOT EXISTS nature_stay.host_private_details (
   created_at            timestamptz                 NOT NULL DEFAULT now(),
   updated_at            timestamptz                 NOT NULL DEFAULT now(),
 
-  CONSTRAINT host_private_details_pkey PRIMARY KEY (host_id),
-  CONSTRAINT host_private_details_regimen_check CHECK (
-    regimen_fiscal IS NULL OR regimen_fiscal IN (
-      'Persona Fisica','Persona Moral','Resico','Sin Obligaciones'
-    )
-  )
+  CONSTRAINT host_private_details_pkey PRIMARY KEY (host_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_host_private_details_coordinates

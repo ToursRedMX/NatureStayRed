@@ -163,3 +163,13 @@ GRANT SELECT ON nature_stay.settings TO authenticated;
 -- No UPDATE/INSERT/DELETE grants to authenticated or anon.
 -- service_role gets explicit grants (bypasses RLS):
 GRANT SELECT, INSERT, UPDATE, DELETE ON nature_stay.settings TO service_role;
+
+-- ============================================================================
+-- 9. Trigger: settings updated_at
+-- ============================================================================
+
+DROP TRIGGER IF EXISTS trg_settings_updated_at ON nature_stay.settings;
+CREATE TRIGGER trg_settings_updated_at
+  BEFORE UPDATE ON nature_stay.settings
+  FOR EACH ROW
+  EXECUTE FUNCTION nature_stay.update_updated_at();
