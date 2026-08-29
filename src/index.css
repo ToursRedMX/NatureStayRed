@@ -1,3 +1,21 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-sand-50 text-forest-950 font-sans antialiased;
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-display;
+  }
+}
+
+@layer components {
+  .skeleton-shimmer {
+    @apply bg-gradient-to-r from-sand-100 via-sand-200 to-sand-100 bg-[length:1000px_100%] animate-shimmer;
+  }
+}
