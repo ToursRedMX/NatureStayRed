@@ -45,6 +45,11 @@ export function MarketplacePage() {
         </div>
 
         <div className="relative z-10 mx-auto max-w-4xl px-4 py-20 text-center">
+          <img
+            src="/LogoNatureStayRed.PNG"
+            alt="Nature Stay Red"
+            className="mx-auto mb-6 h-24 w-auto object-contain drop-shadow-lg sm:h-28"
+          />
           <h1 className="font-display text-4xl font-bold text-white drop-shadow-lg sm:text-5xl md:text-6xl">
             Encuentra tu refugio
             <span className="block text-terracotta-300">en la naturaleza</span>

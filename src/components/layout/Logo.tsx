@@ -7,7 +7,7 @@ export function Logo({ className }: { className?: string }) {
       <img
         src="/LogoNatureStayRed.PNG"
         alt="Nature Stay Red — Hospedajes en la naturaleza"
-        className="h-12 w-auto object-contain"
+        className="h-16 w-auto object-contain"
       />
     </Link>
   );
