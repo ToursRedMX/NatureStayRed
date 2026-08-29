@@ -138,7 +138,7 @@ export function MarketplacePage() {
             <EmptyState
               icon={<Mountain size={56} />}
               title="No hay alojamientos publicados todavía"
-              description="Los primeros anfitriones de Nature Stay aún están preparando sus espacios. Vuelve pronto para descubrir lugares increíbles."
+              description="Los primeros anfitriones de Nature Stay Red aún están preparando sus espacios. Vuelve pronto para descubrir lugares increíbles."
               action={
                 <Link to="/nature-stay">
                   <Button variant="secondary">Quiero ser Host</Button>
@@ -166,7 +166,7 @@ export function MarketplacePage() {
             ¿Tienes un espacio en la naturaleza?
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-sand-200">
-            Conviértete en anfitrión de Nature Stay y ofrece tu cabaña, glamping o eco-lodge a viajeros que buscan desconectar.
+            Conviértete en anfitrión de Nature Stay Red y ofrece tu cabaña, glamping o eco-lodge a viajeros que buscan desconectar.
           </p>
           <Link to="/nature-stay" className="mt-8 inline-block">
             <Button variant="secondary" size="lg">

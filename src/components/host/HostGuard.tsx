@@ -35,8 +35,8 @@ export function HostGuard({ children }: { children: ReactNode }) {
       <div className="mx-auto max-w-3xl px-4 py-16">
         <EmptyState
           icon={<Lock size={48} />}
-          title="No eres anfitrión de Nature Stay"
-          description="Tu cuenta no tiene el rol de Host para Nature Stay. Si crees que es un error, contacta al equipo de soporte."
+          title="No eres anfitrión de Nature Stay Red"
+          description="Tu cuenta no tiene el rol de Host para Nature Stay Red. Si crees que es un error, contacta al equipo de soporte."
         />
       </div>
     );

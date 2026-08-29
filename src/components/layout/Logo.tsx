@@ -25,7 +25,7 @@ export function Logo({ className }: { className?: string }) {
         <rect x="4" y="36" width="40" height="4" rx="2" fill="#ad985f" />
       </svg>
       <span className="font-display text-lg font-bold tracking-tight text-forest-800">
-        Nature<span className="text-terracotta-500">Stay</span>
+        Nature Stay <span className="text-terracotta-500">Red</span>
       </span>
     </Link>
   );

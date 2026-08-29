@@ -15,7 +15,7 @@ export function NatureStayFooter() {
                 <rect x="4" y="36" width="40" height="4" rx="2" fill="#998452" />
               </svg>
               <span className="font-display text-base font-bold text-white">
-                Nature<span className="text-terracotta-400">Stay</span>
+                Nature Stay <span className="text-terracotta-400">Red</span>
               </span>
             </div>
             <p className="mt-3 text-sm text-sand-300">
@@ -42,7 +42,7 @@ export function NatureStayFooter() {
         </div>
 
         <div className="mt-8 border-t border-forest-800 pt-6 text-center text-xs text-sand-400">
-          © {new Date().getFullYear()} NatureStay · Parte del ecosistema Red
+          © {new Date().getFullYear()} Nature Stay Red · Parte del ecosistema Red
         </div>
       </div>
     </footer>
