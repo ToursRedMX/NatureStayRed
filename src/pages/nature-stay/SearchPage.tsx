@@ -101,7 +101,7 @@ export function SearchPage() {
       const next = new URLSearchParams(searchParams);
       if (value) next.set(key, value);
       else next.delete(key);
-      if (key !== "page" && value) next.delete("page");
+      if (key !== "page") next.delete("page");
       setSearchParams(next);
     },
     [searchParams, setSearchParams]

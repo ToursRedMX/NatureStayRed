@@ -7,6 +7,5 @@ export function getNatureStayPublicImageUrl(storagePath: string | null | undefin
     return storagePath;
   }
 
-  const cleanPath = storagePath.replace(/^\/+/, "");
-  return `${SUPABASE_URL}/storage/v1/object/public/${cleanPath}`;
+  return null;
 }
