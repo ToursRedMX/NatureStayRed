@@ -1,25 +1,39 @@
 import { Link } from "react-router-dom";
 import { MapPin, PawPrint, Zap, Home } from "lucide-react";
 import type { PropertyPublic, PropertyType } from "@/types/nature-stay";
-import { cn } from "@/lib/utils";
+import { getNatureStayPublicImageUrl } from "@/lib/nature-stay-images";
+import { cn, formatPrice } from "@/lib/utils";
 
 interface PropertyCardProps {
   property: PropertyPublic;
   propertyType?: PropertyType;
-  coverImageUrl?: string | null;
+  coverImageStoragePath?: string | null;
+  minPrice?: number | null;
+  priceCurrency?: string | null;
+  priceMode?: string | null;
 }
 
-export function PropertyCard({ property, propertyType, coverImageUrl }: PropertyCardProps) {
+export function PropertyCard({
+  property,
+  propertyType,
+  coverImageStoragePath,
+  minPrice,
+  priceCurrency,
+  priceMode,
+}: PropertyCardProps) {
+  const coverUrl = getNatureStayPublicImageUrl(coverImageStoragePath);
+
   return (
     <Link
       to={`/nature-stay/${property.slug}`}
       className="group block overflow-hidden rounded-2xl border border-sand-200 bg-white transition-all duration-300 hover:shadow-xl hover:border-forest-200 hover:-translate-y-1"
     >
       <div className="relative h-56 overflow-hidden bg-sand-100">
-        {coverImageUrl ? (
+        {coverUrl ? (
           <img
-            src={coverImageUrl}
+            src={coverUrl}
             alt={property.name}
+            loading="lazy"
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
@@ -63,9 +77,18 @@ export function PropertyCard({ property, propertyType, coverImageUrl }: Property
         </div>
 
         {property.short_description && (
-          <p className="text-sm text-forest-600 line-clamp-2">
-            {property.short_description}
-          </p>
+          <p className="text-sm text-forest-600 line-clamp-2">{property.short_description}</p>
+        )}
+
+        {minPrice != null && priceCurrency && (
+          <div className="pt-1">
+            <span className="font-display text-lg font-bold text-forest-700">
+              Desde {formatPrice(minPrice, priceCurrency)}
+            </span>
+            {priceMode === "per_unit_per_night" && (
+              <span className="ml-1 text-xs text-sand-500">/ noche</span>
+            )}
+          </div>
         )}
       </div>
     </Link>

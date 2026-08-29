@@ -117,6 +117,51 @@ export interface PropertyAmenityPublic {
   amenity_id: string;
 }
 
+export interface UnitAmenityPublic {
+  id: string;
+  unit_id: string;
+  amenity_id: string;
+}
+
+export interface UnitImagePublic {
+  id: string;
+  unit_id: string;
+  storage_path: string;
+  alt_text: string | null;
+  caption: string | null;
+  sort_order: number;
+  is_cover: boolean;
+  width: number | null;
+  height: number | null;
+  file_size: number | null;
+  mime_type: string | null;
+  created_at: string;
+}
+
+export interface PropertyTourLinkPublic {
+  id: string;
+  property_id: string;
+  tour_id: string;
+  active: boolean;
+  featured: boolean;
+  display_order: number;
+  discount_type: string | null;
+  discount_value: number | null;
+  valid_from: string | null;
+  valid_until: string | null;
+  created_at: string;
+}
+
+export interface TourPublic {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  image_url: string | null;
+  price: number | null;
+  destination: string | null;
+}
+
 export interface UserRole {
   user_id: string;
   role: string;

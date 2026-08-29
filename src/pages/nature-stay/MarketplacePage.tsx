@@ -1,16 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   Search, MapPin, Users, Home as HomeIcon,
-  Mountain, TreePine, Tent, Building2, Waves, Sparkles, Compass
+  Mountain, TreePine, Tent, Building2, Waves, Sparkles, Compass,
+  Palmtree, Castle, Ship
 } from "lucide-react";
 import { useProperties } from "@/hooks/nature-stay/useProperties";
 import { usePropertyTypes } from "@/hooks/nature-stay/useCatalogs";
+import { useUnitsBatch, getMinPrice } from "@/hooks/nature-stay/useUnitsBatch";
 import { PropertyCard } from "@/components/nature-stay/PropertyCard";
 import { SkeletonCard } from "@/components/ui/SkeletonCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorAlert } from "@/components/ui/ErrorAlert";
 import { Button } from "@/components/ui/Button";
+import { setDocumentMeta } from "@/lib/seo";
+import { Select } from "@/components/ui/Select";
+import { supabase } from "@/lib/supabase";
+import type { PropertyImagePublic } from "@/types/nature-stay";
 
 const HERO_IMAGE = "https://images.pexels.com/photos/29277697/pexels-photo-29277697.jpeg?auto=compress&cs=tinysrgb&w=1920";
 
@@ -22,6 +28,13 @@ const CATEGORY_ICONS: Record<string, typeof Mountain> = {
   ranch: Compass,
   ecocabin: Sparkles,
   beachfront: Waves,
+  beach_hotel: Palmtree,
+  eco_lodge: Sparkles,
+  camping: Tent,
+  tree_house: TreePine,
+  farm: Compass,
+  castle: Castle,
+  boat: Ship,
   default: HomeIcon,
 };
 
@@ -30,6 +43,56 @@ export function MarketplacePage() {
   const { data: propertyTypes, loading: typesLoading } = usePropertyTypes();
   const [searchDestination, setSearchDestination] = useState("");
   const [searchGuests, setSearchGuests] = useState("");
+  const [searchType, setSearchType] = useState("");
+
+  useEffect(() => {
+    setDocumentMeta(
+      "Nature Stay Red — Hospedajes en la naturaleza",
+      "Cabañas, glamping y eco-lodges rodeados de paisajes naturales únicos en México."
+    );
+  }, []);
+
+  // Batch fetch units for all properties to show "Desde $X"
+  const propertyIds = useMemo(() => properties.map((p) => p.id), [properties]);
+  const { data: unitsByProp } = useUnitsBatch(propertyIds);
+
+  // Batch fetch cover images
+  const [coverImages, setCoverImages] = useState<Record<string, string | null>>({});
+
+  useEffect(() => {
+    if (propertyIds.length === 0) {
+      setCoverImages({});
+      return;
+    }
+
+    (async () => {
+      const { data: imgData } = await supabase
+        .schema("nature_stay")
+        .from("property_images_public")
+        .select("property_id, storage_path, is_cover, sort_order")
+        .in("property_id", propertyIds)
+        .order("is_cover", { ascending: false })
+        .order("sort_order", { ascending: true });
+
+      if (imgData) {
+        const covers: Record<string, string | null> = {};
+        for (const img of imgData as Pick<PropertyImagePublic, "property_id" | "storage_path" | "is_cover" | "sort_order">[]) {
+          if (!covers[img.property_id]) {
+            covers[img.property_id] = img.storage_path;
+          }
+        }
+        setCoverImages(covers);
+      }
+    })();
+  }, [propertyIds.join(",")]);
+
+  const buildSearchUrl = () => {
+    const params = new URLSearchParams();
+    if (searchDestination) params.set("q", searchDestination);
+    if (searchGuests) params.set("guests", searchGuests);
+    if (searchType) params.set("propertyType", searchType);
+    return `/nature-stay/search${params.toString() ? `?${params.toString()}` : ""}`;
+  };
 
   return (
     <div className="animate-fade-in">
@@ -59,7 +122,7 @@ export function MarketplacePage() {
           </p>
 
           {/* Search bar */}
-          <div className="mx-auto mt-8 max-w-2xl rounded-2xl bg-white/95 p-4 shadow-2xl backdrop-blur-sm">
+          <div className="mx-auto mt-8 max-w-3xl rounded-2xl bg-white/95 p-4 shadow-2xl backdrop-blur-sm">
             <div className="flex flex-col gap-3 sm:flex-row">
               <div className="relative flex-1">
                 <MapPin size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-forest-400" />
@@ -69,9 +132,21 @@ export function MarketplacePage() {
                   value={searchDestination}
                   onChange={(e) => setSearchDestination(e.target.value)}
                   className="w-full rounded-xl border border-sand-200 bg-white py-3 pl-10 pr-4 text-sm text-forest-950 placeholder:text-sand-400 focus:border-forest-400 focus:outline-none focus:ring-2 focus:ring-forest-200"
+                  aria-label="Destino de busqueda"
                 />
               </div>
-              <div className="relative sm:w-40">
+              <Select
+                value={searchType}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSearchType(e.target.value)}
+                className="sm:w-44"
+                aria-label="Tipo de alojamiento"
+              >
+                <option value="">Todos los tipos</option>
+                {propertyTypes.map((t) => (
+                  <option key={t.id} value={t.code}>{t.name}</option>
+                ))}
+              </Select>
+              <div className="relative sm:w-36">
                 <Users size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-forest-400" />
                 <input
                   type="number"
@@ -80,10 +155,11 @@ export function MarketplacePage() {
                   value={searchGuests}
                   onChange={(e) => setSearchGuests(e.target.value)}
                   className="w-full rounded-xl border border-sand-200 bg-white py-3 pl-10 pr-4 text-sm text-forest-950 placeholder:text-sand-400 focus:border-forest-400 focus:outline-none focus:ring-2 focus:ring-forest-200"
+                  aria-label="Numero de huespedes"
                 />
               </div>
               <Link
-                to={`/nature-stay/search${searchDestination ? `?q=${encodeURIComponent(searchDestination)}` : ""}`}
+                to={buildSearchUrl()}
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-forest-600 px-6 py-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-forest-700"
               >
                 <Search size={18} />
@@ -101,12 +177,12 @@ export function MarketplacePage() {
             Tipos de alojamiento
           </h2>
           <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-            {propertyTypes.slice(0, 12).map((type) => {
+            {propertyTypes.slice(0, 13).map((type) => {
               const Icon = CATEGORY_ICONS[type.code] || HomeIcon;
               return (
                 <Link
                   key={type.id}
-                  to={`/nature-stay/search?type=${type.code}`}
+                  to={`/nature-stay/search?propertyType=${type.code}`}
                   className="group flex flex-col items-center gap-3 rounded-2xl border border-sand-200 bg-white p-5 transition-all hover:border-forest-300 hover:shadow-md"
                 >
                   <div className="flex h-14 w-14 items-center justify-center rounded-full bg-forest-50 text-forest-600 transition-colors group-hover:bg-forest-100 group-hover:text-forest-700">
@@ -142,8 +218,8 @@ export function MarketplacePage() {
           ) : properties.length === 0 ? (
             <EmptyState
               icon={<Mountain size={56} />}
-              title="No hay alojamientos publicados todavía"
-              description="Los primeros anfitriones de Nature Stay Red aún están preparando sus espacios. Vuelve pronto para descubrir lugares increíbles."
+              title="Aún no hay alojamientos publicados"
+              description="Los primeros anfitriones de Nature Stay Red están preparando sus espacios. Vuelve pronto para descubrir lugares increíbles."
               action={
                 <Link to="/nature-stay">
                   <Button variant="secondary">Quiero ser Host</Button>
@@ -152,13 +228,21 @@ export function MarketplacePage() {
             />
           ) : (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {properties.map((prop) => (
-                <PropertyCard
-                  key={prop.id}
-                  property={prop}
-                  propertyType={propertyTypes.find((t) => t.id === prop.property_type_id)}
-                />
-              ))}
+              {properties.map((prop) => {
+                const units = unitsByProp[prop.id];
+                const minPriceUnit = getMinPrice(units);
+                return (
+                  <PropertyCard
+                    key={prop.id}
+                    property={prop}
+                    propertyType={propertyTypes.find((t) => t.id === prop.property_type_id)}
+                    coverImageStoragePath={coverImages[prop.id] || null}
+                    minPrice={minPriceUnit?.base_price ?? null}
+                    priceCurrency={minPriceUnit?.currency ?? null}
+                    priceMode={minPriceUnit?.pricing_mode ?? null}
+                  />
+                );
+              })}
             </div>
           )}
         </div>
